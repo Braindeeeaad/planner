@@ -1,1 +1,4 @@
-venv
+/dist/
+/target/
+/Cargo.lock
+.vscode
