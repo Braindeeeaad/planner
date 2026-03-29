@@ -3,6 +3,13 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
+mod components; 
+
+//use components::sidebar::Sidebar;
+use components::calendar::Calendar;
+
+
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
@@ -16,7 +23,7 @@ struct GreetArgs<'a> {
 
 #[function_component(App)]
 pub fn app() -> Html {
-    let greet_input_ref = use_node_ref();
+    //let greet_input_ref = use_node_ref();
 
     let name = use_state(|| String::new());
 
@@ -44,6 +51,7 @@ pub fn app() -> Html {
         );
     }
 
+    /* 
     let greet = {
         let name = name.clone();
         let greet_input_ref = greet_input_ref.clone();
@@ -56,27 +64,11 @@ pub fn app() -> Html {
                     .value(),
             );
         })
-    };
+    };*/
 
     html! {
-        <main class="container">
-            <h1>{"Welcome to Tauri + Yew"}</h1>
-
-            <div class="row">
-                <a href="https://tauri.app" target="_blank">
-                    <img src="public/tauri.svg" class="logo tauri" alt="Tauri logo"/>
-                </a>
-                <a href="https://yew.rs" target="_blank">
-                    <img src="public/yew.png" class="logo yew" alt="Yew logo"/>
-                </a>
-            </div>
-            <p>{"Click on the Tauri and Yew logos to learn more."}</p>
-
-            <form class="row" onsubmit={greet}>
-                <input id="greet-input" ref={greet_input_ref} placeholder="Enter a name..." />
-                <button type="submit">{"Greet"}</button>
-            </form>
-            <p>{ &*greet_msg }</p>
+        <main class="container"> 
+            <Calendar/>
         </main>
     }
 }

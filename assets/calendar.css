@@ -1,0 +1,68 @@
+.calendar-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  max-width: 1200px;
+  margin: 20px auto;
+}
+
+/* Headers: 1 narrow column for the time spacer, 7 for days */
+.header-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  border-bottom: 2px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.day-header {
+  text-align: center;
+  padding: 10px 0;
+  font-weight: 600;
+  border-left: 1px solid #e5e7eb;
+}
+
+/* Main Grid: Same column template as the header so they line up perfectly! */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  height: 600px;
+  overflow-y: scroll;
+}
+
+/* Left column containing the hour text */
+.time-labels-column {
+  display: grid;
+  grid-template-rows: repeat(24, 60px); /* Each hour is 60px tall */
+}
+
+.time-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* The 7 day columns */
+.day-column {
+  display: grid;
+  grid-template-rows: repeat(24, 60px);
+  border-left: 1px solid #e5e7eb;
+}
+
+/* The actual clickable squares in the calendar */
+.grid-cell {
+  border-bottom: 1px solid #f3f4f6;
+  background-color: #ffffff;
+}
+
+.grid-cell:hover {
+  background-color: #f3f4f6;
+  cursor: pointer;
+}
+
+time-spacer {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb; /* Keeps the bottom line connected */
+}
