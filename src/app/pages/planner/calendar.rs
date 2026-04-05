@@ -1,14 +1,23 @@
 //use web_sys::HtmlCollection;
 use yew::prelude::*; 
+use std::time::SystemTime;
+use yew::MouseEvent;
+use log::info;
 
 
+pub struct CalendarProps{
+    //pub tasks:Vec<Task>, 
+    pub onmousedown: Callback<(MouseEvent,usize)>,
+    pub onmouseup: Callback<(MouseEvent, usize)>
+}
 #[function_component(Calendar)] 
 pub fn calendar() -> Html {
     let days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-
+    //let tasks:Vec<Task> = Vec::new();
+    
     html! { 
+        
         <div class="calendar-container"> 
-            
             // 1. Headers Row (Floating Glassmorphism style)
             <div class="header-grid">
                 <div class="time-spacer">

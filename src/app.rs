@@ -4,9 +4,10 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
 mod components; 
+mod pages;
 
 //use components::sidebar::Sidebar;
-use components::calendar::Calendar;
+use pages::planner::calendar::Calendar;
 
 
 
