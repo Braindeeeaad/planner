@@ -7,7 +7,7 @@ mod components;
 mod pages;
 
 //use components::sidebar::Sidebar;
-use pages::planner::calendar::Calendar;
+use pages::planner::calendar::calendar::Calendar;
 
 
 
@@ -69,7 +69,7 @@ pub fn app() -> Html {
 
     html! {
         <main class="container"> 
-            <Calendar/>
+            //<Calendar/>
         </main>
     }
 }

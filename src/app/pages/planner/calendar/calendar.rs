@@ -1,20 +1,31 @@
 //use web_sys::HtmlCollection;
 use yew::prelude::*; 
 use std::time::SystemTime;
-use yew::MouseEvent;
+use yew::{MouseEvent};
 use log::info;
 
 
+use wasm_bindgen::JsCast;
+
+pub struct GridDims{
+    pub x: u32, 
+    pub y: u32, 
+    pub width: u32, 
+    pub length: u32
+}
+
+#[derive(Properties, PartialEq)]
 pub struct CalendarProps{
-    //pub tasks:Vec<Task>, 
+    //pub tasks:Vec<Task>,
+     
     pub onmousedown: Callback<(MouseEvent,usize)>,
     pub onmouseup: Callback<(MouseEvent, usize)>
 }
 #[function_component(Calendar)] 
-pub fn calendar() -> Html {
+pub fn calendar(props: &CalendarProps) -> Html {
     let days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-    //let tasks:Vec<Task> = Vec::new();
-    
+    //let tasks:Vec<Task> = Vec::new()
+
     html! { 
         
         <div class="calendar-container"> 
@@ -64,8 +75,8 @@ pub fn calendar() -> Html {
                             }
 
                             {
-                                (0..24).map(|_hour| html! {
-                                    <div class="grid-cell"></div>
+                                (0..24).map(|hour| html! {
+                                    <div class="grid-cell" id={hour.to_string()} ></div>
                                 }).collect::<Html>()
                             }
                         </div>

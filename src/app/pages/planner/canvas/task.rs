@@ -1,7 +1,7 @@
 use yew::prelude::*; 
 use std::time::SystemTime;
 
-
+#[derive(PartialEq)]
 struct Task{
     name: String, 
     start: SystemTime, 
@@ -10,14 +10,12 @@ struct Task{
 
 
 
+#[derive(Properties,PartialEq)]
+pub struct TaskCardProp{
+    task: Task
+}
+
 #[function_component(TaskCard)]
-pub fn task(){
-    html!(
-    {
-        <div><\div>
-
-
-
-    }
-);    
+pub fn task_card(props:&TaskCardProp)->Html{
+    html!{}
 }
