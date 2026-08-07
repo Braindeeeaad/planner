@@ -1,0 +1,7 @@
+{
+  "emmet.includeLanguages": {
+    "rust": "html"
+  },
+  "rust-analyzer.procMacro.enable": true,
+  "rust-analyzer.cargo.buildScripts.enable": true,
+}
