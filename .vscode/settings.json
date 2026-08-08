@@ -4,4 +4,5 @@
   },
   "rust-analyzer.procMacro.enable": true,
   "rust-analyzer.cargo.buildScripts.enable": true,
+  "rust-analyzer.cargo.targetDir": true
 }

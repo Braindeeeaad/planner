@@ -13,20 +13,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-pub fn add(left: u64, right: u64)->u64{
-    right+left 
-}
-
-#[cfg(test)]
-mod tests {
-    use std::assert_eq;
-
-    use super::*; 
-    
-    #[test] 
-    fn exploration() {
-        let result = add(2,2); 
-        assert_eq!(result,4);
-    }
-}

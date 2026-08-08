@@ -1,1 +1,5 @@
 venv
+target
+Cargo.lock
+dist
+sqlite.db
