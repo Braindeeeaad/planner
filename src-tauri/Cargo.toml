@@ -22,8 +22,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-
+sqlx = { version = "0.6.2", features = ["runtime-tokio-native-tls", "sqlite"]}
+tokio = { version = "1.20.0", features = ["macros"]}
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
 codegen-units = 1
