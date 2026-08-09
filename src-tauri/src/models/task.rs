@@ -4,8 +4,8 @@ use sqlx::FromRow;
 pub struct task{
     id: String, 
     
-    goal_id: Optional<String>, 
-    event_context_d: Optional<String>, 
+    goal_id: Option<String>, 
+    event_context_d: Option<String>, 
     
     title: String, 
     task_type: String, 
@@ -46,3 +46,7 @@ pub struct task_feedback{
 pub fn create_task(){}
 
 pub fn get_task_by_goal(){}
+
+pub fn crete_task_dependency(){}
+
+

@@ -1,7 +1,7 @@
 use sqlx::{migrate::MigrateDatabase, Sqlite}; 
 use std::time::Duration; 
 use sqlx::sqlite::{SqlitePool,SqlitePoolOptions};
-use sqlx::Row;
+//use sqlx::Row;
 const DB_URL: &str = "sqlite://sqlite.db"; 
 
 

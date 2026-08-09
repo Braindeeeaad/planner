@@ -20,3 +20,7 @@ pub struct user_ability_profiles{
 
 
 
+pub fn get_user_ability_profile(){}
+
+
+pub fn update_user_velocity(){}
