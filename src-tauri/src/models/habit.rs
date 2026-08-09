@@ -1,7 +1,7 @@
 use sqlx::FromRow; 
 
 #[derive(Debug,FromRow)] 
-pub struct habits{
+pub struct Habits{
     id: String, 
     goal_id: Option<String>, 
     title: String,

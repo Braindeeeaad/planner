@@ -5,6 +5,8 @@ use sqlx::sqlite::{SqlitePool,SqlitePoolOptions};
 const DB_URL: &str = "sqlite://sqlite.db"; 
 
 
+pub struct Saved; 
+pub struct Unsaved;
 
 
 pub async fn establish_connection(db_url: &str)-> anyhow::Result<SqlitePool> {
