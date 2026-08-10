@@ -49,9 +49,11 @@ CREATE TABLE tasks (
 CREATE TABLE task_dependencies (
     predecessor_id TEXT NOT NULL,      -- Must finish first
     successor_id TEXT NOT NULL,        -- Depends on predecessor
+    goal_id TEXT NOT NULL, 
     PRIMARY KEY (predecessor_id, successor_id),
     FOREIGN KEY (predecessor_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (successor_id) REFERENCES tasks(id) ON DELETE CASCADE
+    FOREIGN KEY (successor_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (goal_id) REFERENCES goals(id)
 );
 
 -- 6. Habits (Templates that generate recurring tasks)

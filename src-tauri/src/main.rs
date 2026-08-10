@@ -4,7 +4,11 @@
 pub mod db;
 pub mod models; 
 pub mod services; 
-fn main() {
+pub mod core;
+
+#[tokio::main] 
+async fn main() {
+    _ = db::connection::init_db().await;
     genplanner_lib::run()
 }
 

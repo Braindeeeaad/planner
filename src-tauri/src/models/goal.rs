@@ -1,10 +1,10 @@
-use crate::db::connection::{Saved, Unsaved};
+use crate::db::connection::{Saved, New};
 use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Row, sqlite::SqliteRow};
 use std::marker::PhantomData;
 use uuid::Uuid;
 
-pub struct Goal<State = Unsaved> {
+pub struct Goal<State = New> {
     id: String,
     title: String,
     target_date: String,
@@ -24,7 +24,7 @@ impl<'r, State> FromRow<'r, SqliteRow> for Goal<State> {
     }
 }
 
-impl Goal<Unsaved> {
+impl Goal<New> {
     pub fn new(title: String, target_date: String, status: String) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
@@ -36,7 +36,7 @@ impl Goal<Unsaved> {
     }
 }
 
-pub async fn upload_goal(goal: Goal<Unsaved>, pool: &SqlitePool) -> anyhow::Result<Goal<Saved>> {
+pub async fn upload_goal(goal: Goal<New>, pool: &SqlitePool) -> anyhow::Result<Goal<Saved>> {
     let query = "INSERT INTO goals (id,title,target_date,status) VALUES ($1,$2,$3,$4)";
     sqlx::query(query)
         .bind(&goal.id)

@@ -1,10 +1,12 @@
-use crate::db::connection::{Saved, Unsaved};
+use crate::db::connection::{Saved, New, Changed};
 use sqlx::sqlite::SqlitePool;
 use sqlx::{FromRow, Row, sqlite::SqliteRow};
 use std::marker::PhantomData;
 use uuid::Uuid;
+use crate::core::dag::Action;
+use std::any::TypeId;
 
-pub struct Task<State = Unsaved> {
+pub struct Task<State = New> {
     id: String,
     goal_id: Option<String>,
     event_context_id: Option<String>,
@@ -13,14 +15,21 @@ pub struct Task<State = Unsaved> {
     base_duration: u32,
     schedule_start: String,
     schedule_end: String,
-    urgency_score: f32,
-    importance_score: f32,
-    priority_weight: f32,
+    urgency_score: f64,
+    importance_score: f64,
+    priority_weight: f64,
     status: String,
     _state: PhantomData<State>,
 }
 
-impl<'r, State> FromRow<'r, SqliteRow> for Task<State> {
+
+/*
+
+    Task trait implementation
+
+
+*/
+impl <'r, State> FromRow<'r, SqliteRow> for Task<State> {
     fn from_row(row: &'r SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
@@ -40,7 +49,20 @@ impl<'r, State> FromRow<'r, SqliteRow> for Task<State> {
     }
 }
 
-impl Task<Unsaved> {
+impl<State:'static> Action for Task<State>{
+    fn get_uuid(&self)->&str {
+        &self.id
+    }
+    fn upload(&self)->Result<(),sqlx::Error> {
+        if TypeId::of::<State>() == TypeId::of::<New>(){
+
+        }
+        Ok(())
+    }
+}
+
+
+impl Task<New> {
     pub fn new(
         goal_id: Option<String>,
         event_context_id: Option<String>,
@@ -49,9 +71,9 @@ impl Task<Unsaved> {
         base_duration: u32,
         schedule_start: String,
         schedule_end: String,
-        urgency_score: f32,
-        importance_score: f32,
-        priority_weight: f32,
+        urgency_score: f64,
+        importance_score: f64,
+        priority_weight: f64,
         status: String,
     ) -> Self {
         Self {
@@ -72,7 +94,7 @@ impl Task<Unsaved> {
     }
 }
 
-pub async fn create_task(task: Task<Unsaved>, pool: &SqlitePool) -> anyhow::Result<Task<Saved>> {
+pub async fn create_task(task: Task<New>, pool: &SqlitePool) -> anyhow::Result<Task<Saved>> {
     let query = "INSERT INTO tasks
                        (id,goal_id,event_context_id,title,task_type,base_duration,schedule_start,schedule_end,urgency_score,importance_score,priority_weight,status)
                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)";
@@ -128,7 +150,7 @@ pub struct TaskDependency {
     successor_id: String,
 }
 
-pub async fn create_task_dependency(
+pub async fn upload_task_dependency(
     predecessor_id: &str,
     successor_id: &str,
     pool: &SqlitePool,

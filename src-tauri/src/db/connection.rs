@@ -6,19 +6,18 @@ const DB_URL: &str = "sqlite://sqlite.db";
 
 
 pub struct Saved; 
-pub struct Unsaved;
+pub struct New;
 
+pub struct Changed;
 
-pub async fn establish_connection(db_url: &str)-> anyhow::Result<SqlitePool> {
-    let pool = SqlitePoolOptions::new() 
-        .max_connections(50)
-        .acquire_timeout(Duration::from_secs(3))
-        .idle_timeout(Duration::from_secs(10))
-        .connect(db_url)
-        .await?;
-
-    Ok(pool)
+pub async fn init_db()->anyhow::Result<()>{
+    create_database().await; 
+    let pool = establish_connection().await?;
+    run_migrations(&pool).await?; 
+    Ok(())
 }
+
+
 
 pub async fn create_database(){
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false){
@@ -33,10 +32,30 @@ pub async fn create_database(){
 }
 
 
+
+pub async fn establish_connection()-> anyhow::Result<SqlitePool> {
+    let pool = SqlitePoolOptions::new() 
+        .max_connections(50)
+        .acquire_timeout(Duration::from_secs(3))
+        .idle_timeout(Duration::from_secs(10))
+        .connect(DB_URL)
+        .await?;
+
+    Ok(pool)
+}
+
+pub async fn run_migrations(pool:&SqlitePool)-> anyhow::Result<()>{
+    sqlx::migrate!("./src/db/migrations")
+                .run(pool)
+                .await?;
+    Ok(())
+}
+
+
 #[tokio::test(name="db_connection_test")]
 async fn db_connection_test()-> Result<(),sqlx::Error>{
     create_database().await;
-    match establish_connection(&DB_URL).await{
+    match establish_connection().await{
         Ok(pool) => {
             sqlx::migrate!("./src/db/migrations")
                 .run(&pool)

@@ -1,12 +1,12 @@
 //use sqlx::FromRow;
-use crate::db::connection::{Saved,Unsaved}; 
+use crate::db::connection::{Saved,New}; 
 use sqlx::sqlite::{SqlitePool};
 use sqlx::{FromRow, Row, sqlite::SqliteRow};
 use std::marker::PhantomData;
 use uuid::Uuid;
 
 
-pub struct Location<State=Unsaved>{
+pub struct Location<State=New>{
     id: String, 
     name: String, 
     address: String, 
@@ -28,7 +28,7 @@ impl<'r, State> FromRow<'r, SqliteRow> for Location<State> {
         })
     }
 }
-impl Location<Unsaved> {
+impl Location<New> {
     pub fn new(
         name: String,
         address: String,
@@ -88,7 +88,7 @@ pub async fn get_locations(pool:&SqlitePool)->anyhow::Result<Vec<Location<Saved>
 
 
 
-pub struct EventContext<State = Unsaved>{
+pub struct EventContext<State = New>{
     id: String, 
     title: String, 
     category: String ,
@@ -111,7 +111,7 @@ impl<'r, State> FromRow<'r, SqliteRow> for EventContext<State> {
         })
     }
 }
-impl EventContext<Unsaved> {
+impl EventContext<New> {
     pub fn new(
         title: String,
         category: String,
@@ -133,7 +133,7 @@ impl EventContext<Unsaved> {
 
 
 pub async fn upload_event_context(
-    context:EventContext<Unsaved>, 
+    context:EventContext<New>, 
     pool:&SqlitePool
 )->anyhow::Result<EventContext<Saved>>{
     
