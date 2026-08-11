@@ -1,6 +1,6 @@
 use sqlx::FromRow; 
 use crate::core::dag::Action;
-#[derive(Debug,FromRow)] 
+#[derive(Debug,FromRow,Clone)] 
 pub struct Habit{
     id: String, 
     goal_id: Option<String>, 
@@ -9,6 +9,7 @@ pub struct Habit{
     target_time: u32, 
     streak_count: u32,
 }
+
 
 impl Action for Habit{
     fn get_uuid(&self)->&str {

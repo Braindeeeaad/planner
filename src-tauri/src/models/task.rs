@@ -6,6 +6,8 @@ use uuid::Uuid;
 use crate::core::dag::Action;
 use std::any::TypeId;
 
+
+#[derive(Clone)]
 pub struct Task<State = New> {
     id: String,
     goal_id: Option<String>,
