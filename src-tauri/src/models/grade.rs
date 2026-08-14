@@ -45,3 +45,4 @@ pub async fn update_user_velocity(
         .await?;
     Ok(())
 }
+

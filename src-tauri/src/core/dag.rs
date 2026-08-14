@@ -1,5 +1,6 @@
 use std::vec;
 use std::collections::HashMap;
+use sqlx::sqlite::SqlitePool;
 
 //Would help if I maintained my own dag datastructure in mem to manipulate then save periodically to the db 
 //Would need a get_task_dependencies, and get_tasks by goal_id, as well as event_contexts
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 use crate::models::habit::Habit; 
 use crate::models::task::Task; 
 use crate::models::goal::Goal;
+use crate::db::connection::{establish_connection};
 
 pub trait Action{
     fn get_uuid(&self)->&str;
@@ -50,11 +52,13 @@ impl Edge{
 //3.Need to implement appropriate upload and delete functions for task dependencies 
 //4.We could make another hashmap using the uuids of the first element of the edges, and the respective 
 //  vector of edges that exist there
-//5.Need a loop cycle that syncs the node and edge states with the sql database.  
 struct Dag{
     
-    pub nodes:HashMap<String,Node>, 
 
+    pool:SqlitePool,
+    goal:Goal,
+
+    nodes:HashMap<String,Node>, 
     //Screw loop cycle checks, instead write user changes to db first
     //Then copy it down into in mem-dag(write-through persistence)
     //Can remove the db::connection::{States} usage throughout and just have 
@@ -66,7 +70,42 @@ struct Dag{
     //Then query predecessor into successor Hashmap and delete respective succesor 
     //Vice versa for predocessors, query in sucessor from task_dependency into predecssor, and delete respective predecessor 
     
-    pub successors: HashMap<String, Vec<String>>, 
+    successors: HashMap<String, Vec<String>>, 
 
-    pub predecessors: HashMap<String, Vec<String>>
+    predecessors: HashMap<String, Vec<String>>
+}
+
+
+impl Dag{
+    pub async fn new(goal:Goal)->anyhow::Result<Self>{
+        let pool =  establish_connection().await?;
+        Ok(
+            Self{   
+            pool,
+            goal,
+            nodes:HashMap::new(), 
+            successors:HashMap::new(), 
+            predecessors:HashMap::new() 
+            
+        })
+
+    }
+    fn download_dag(){
+        //1. Need to load tasks as nodes 
+        //2. Need to load task dependencies and their apporpriate edges 
+        //3. Need to load habits
+        //4. Need to load goal as root
+        
+    }
+
+    pub fn make_edge(){
+
+    }
+    pub fn make_task(){
+
+    }
+    pub fn make_habit(){
+
+    }
+
 }

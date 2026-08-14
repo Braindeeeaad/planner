@@ -16,3 +16,10 @@ console_error_panic_hook = "0.1.7"
 
 [workspace]
 members = ["src-tauri"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
