@@ -70,7 +70,7 @@ impl Task{
     }
 }
 
-pub async fn upload_task(task: Task, pool: &SqlitePool) -> anyhow::Result<()> {
+pub async fn upload_task( pool: &SqlitePool, task: &Task) -> anyhow::Result<()> {
     let query = "INSERT INTO tasks
                        (id,goal_id,event_context_id,title,task_type,base_duration,schedule_start,schedule_end,urgency_score,importance_score,priority_weight,status)
                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)";
@@ -127,7 +127,7 @@ pub async fn get_tasks(
 pub struct TaskDependency {
     pub predecessor_id: String,
     pub successor_id: String,
-    goal_id: String
+    pub goal_id: String
 }
 
 pub async fn upload_task_dependency(

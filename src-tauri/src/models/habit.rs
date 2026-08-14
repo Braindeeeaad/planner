@@ -39,7 +39,7 @@ impl Habit{
 }
 
 
-pub async fn upload_habit(habit: Habit, pool: &SqlitePool) -> anyhow::Result<()> {
+pub async fn upload_habit(pool: &SqlitePool, habit: &Habit ) -> anyhow::Result<()> {
     let query = "INSERT INTO habits (id,title,frequency,target_time,streak_count,goal_id) VALUES ($1,$2,$3,$4,&5,&6)";
     sqlx::query(query)
         .bind(&habit.id)

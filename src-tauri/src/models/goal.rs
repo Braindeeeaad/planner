@@ -34,7 +34,7 @@ impl Goal {
     }
 }
 
-pub async fn upload_goal(goal: Goal, pool: &SqlitePool) -> anyhow::Result<Goal> {
+pub async fn upload_goal(pool: &SqlitePool, goal: Goal) -> anyhow::Result<Goal> {
     let query = "INSERT INTO goals (id,title,target_date,status) VALUES ($1,$2,$3,$4)";
     sqlx::query(query)
         .bind(&goal.id)
