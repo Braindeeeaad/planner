@@ -7,9 +7,9 @@ use sqlx::sqlite::SqlitePool;
 //Given tasks,habits,event_contexts, and task_dependencies Make apporpriate nodes and edges
 //Make sure there's logic that prevents cross-edges that break dag and back-edges 
 //Add Topological sort
-use crate::models::habit::Habit; 
-use crate::models::task::Task; 
-use crate::models::goal::Goal;
+use crate::models::habit::{Habit,upload_habit,delete_habit,get_habits}; 
+use crate::models::task::{Task, delete_task, get_task_dependencies, get_tasks, upload_task}; 
+use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals};
 use crate::db::connection::{establish_connection};
 
 pub trait Action{
@@ -89,21 +89,36 @@ impl Dag{
         })
 
     }
-    fn download_dag(){
-        //1. Need to load tasks as nodes 
-        //2. Need to load task dependencies and their apporpriate edges 
-        //3. Need to load habits
-        //4. Need to load goal as root
+    async fn download_dag(&mut self)->anyhow::Result<()>{ 
+        let tasks = get_tasks(&self.pool, Some(self.goal.get_id())).await?;
+        let habits = get_habits(&self.pool, Some(self.goal.get_id())).await?;
+        let task_dependencies = get_task_dependencies(&self.pool, self.goal.get_id()).await?;
         
+        for task in tasks{
+            self.nodes.insert(String::from(task.get_uuid()),Node::new(task));
+        }
+        for habit in habits{
+            self.nodes.insert(String::from(habit.get_uuid()),Node::new(habit));
+        }
+        for task_dep in task_dependencies{
+            let succ_id = String::from(task_dep.successor_id); 
+            let pred_id = String::from(task_dep.predecessor_id); 
+            let sucessor_vec = self.successors.entry(pred_id.clone()).or_insert(Vec::new());
+            let predecessor_vec = self.predecessors.entry(succ_id.clone()).or_insert(Vec::new());
+            sucessor_vec.push(succ_id);
+            predecessor_vec.push(pred_id);
+
+        }
+        Ok(())
     }
 
-    pub fn make_edge(){
+    pub async fn make_edge(){
 
     }
-    pub fn make_task(){
+    pub async fn make_task(){
 
     }
-    pub fn make_habit(){
+    pub async fn make_habit(){
 
     }
 

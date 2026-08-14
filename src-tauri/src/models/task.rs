@@ -125,8 +125,8 @@ pub async fn get_tasks(
 
 #[derive(Debug, FromRow)]
 pub struct TaskDependency {
-    predecessor_id: String,
-    successor_id: String,
+    pub predecessor_id: String,
+    pub successor_id: String,
     goal_id: String
 }
 

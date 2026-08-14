@@ -29,6 +29,9 @@ impl Goal {
             status,
         }
     }
+    pub fn get_id(&self)->&str{
+        &self.id
+    }
 }
 
 pub async fn upload_goal(goal: Goal, pool: &SqlitePool) -> anyhow::Result<Goal> {
