@@ -14,7 +14,6 @@ use crate::db::connection::{establish_connection};
 
 pub trait Action{
     fn get_uuid(&self)->&str;
-    fn upload(&self)->Result<(),sqlx::Error>;
 }
 
 

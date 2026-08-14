@@ -1,10 +1,10 @@
-use crate::db::connection::{Saved, New};
+
+
 use sqlx::sqlite::SqlitePool;
-use sqlx::{FromRow, Row, sqlite::SqliteRow};
-use std::marker::PhantomData;
+use sqlx::{FromRow};
 use uuid::Uuid;
 
-
+use crate::core::dag::Action;
 #[derive(FromRow)]
 pub struct Goal {
     id: String,
@@ -13,6 +13,12 @@ pub struct Goal {
     status: String,
 }
 
+
+impl Action for Goal{
+    fn get_uuid(&self)->&str {
+        return &self.id
+    }
+}
 
 impl Goal {
     pub fn new(title: String, target_date: String, status: String) -> Self {
@@ -44,7 +50,7 @@ pub async fn upload_goal(goal: Goal, pool: &SqlitePool) -> anyhow::Result<Goal> 
 }
 
 pub async fn delete_goal(pool:&SqlitePool, goal:Goal)->anyhow::Result<()>{
-    let query = "DELETE FROM goals where id=$1";
+    let query = "DELETE FROM goals WHERE id=$1";
     sqlx::query(query)
         .bind(goal.id)
         .execute(pool)

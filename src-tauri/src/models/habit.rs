@@ -23,9 +23,6 @@ impl Action for Habit{
     fn get_uuid(&self)->&str {
         &self.id
     }
-    fn upload(&self)->Result<(),sqlx::Error> {
-        Ok(())
-    }
 }
 
 impl Habit{
@@ -59,7 +56,7 @@ pub async fn upload_habit(habit: Habit, pool: &SqlitePool) -> anyhow::Result<()>
 
 
 pub async fn delete_habit(pool:&SqlitePool, habit:Habit)->anyhow::Result<()>{
-    let query = "DELETE FROM habits where id=$1";
+    let query = "DELETE FROM habits WHERE id=$1";
     sqlx::query(query)
         .bind(habit.id)
         .execute(pool)

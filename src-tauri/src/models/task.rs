@@ -36,12 +36,6 @@ impl Action for Task{
     fn get_uuid(&self)->&str {
         &self.id
     }
-    fn upload(&self)->Result<(),sqlx::Error> {
-        if TypeId::of::<NulError>() == TypeId::of::<NulError>(){
-
-        }
-        Ok(())
-    }
 }
 
 
@@ -99,7 +93,7 @@ pub async fn upload_task(task: Task, pool: &SqlitePool) -> anyhow::Result<()> {
 }
 
 pub async fn delete_task(pool:&SqlitePool, task:Task)->anyhow::Result<()>{
-    let query = "DELETE FROM tasks where id=$1";
+    let query = "DELETE FROM tasks WHERE id=$1";
     sqlx::query(query)
         .bind(task.id)
         .execute(pool)
@@ -133,21 +127,49 @@ pub async fn get_tasks(
 pub struct TaskDependency {
     predecessor_id: String,
     successor_id: String,
+    goal_id: String
 }
 
 pub async fn upload_task_dependency(
+    pool: &SqlitePool,
     predecessor_id: &str,
     successor_id: &str,
-    pool: &SqlitePool,
+    goal_id: &str,
 ) -> anyhow::Result<()> {
-    let query = "INSERT INTO task_dependencies (predecessor_id,successor_id) VALUES ($1,$2)";
+    let query = "INSERT INTO task_dependencies (predecessor_id,successor_id,goal_id) VALUES ($1,$2,$3)";
     sqlx::query(query)
         .bind(predecessor_id)
         .bind(successor_id)
+        .bind(goal_id)
         .execute(pool)
         .await?;
     Ok(())
 }
+
+pub async fn delete_goal(pool:&SqlitePool, successor_id: &str, predecessor_id: &str)->anyhow::Result<()>{
+    let query = "DELETE FROM task_dependencies WHERE (successor_id=$1 AND predecessor_id=$2)";
+    sqlx::query(query)
+        .bind(successor_id)
+        .bind(predecessor_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+
+
+pub async fn get_task_dependencies(pool:&SqlitePool,goal_id:&str)->anyhow::Result<Vec<TaskDependency>>{
+    let task_deps =
+        sqlx::query_as::<_, TaskDependency>(r#"SELECT predecessor_id,successor_id,goal_id FROM task_dependencies 
+                                                            WHERE ($1 IS NULL or group_id = $1)"#)
+            .bind(goal_id)
+            .fetch_all(pool)
+            .await?;
+    Ok(task_deps)
+}
+
+
+
 
 #[derive(Debug, FromRow)]
 pub struct TaskFeedback {
