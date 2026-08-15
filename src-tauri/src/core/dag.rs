@@ -159,7 +159,7 @@ impl Dag{
         Ok(())
     }
 
-    pub fn topological_sort(&mut self)->Option<(Vec<&str>)>{
+    pub fn topological_sort(&mut self)->Option<Vec<&str>>{
         let mut queue: VecDeque<&str> = VecDeque::new();
         let mut in_degree: HashMap<&str,usize> = HashMap::new();
         let mut topo_sort: Vec<&str> = Vec::new();
