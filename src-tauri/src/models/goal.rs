@@ -1,12 +1,13 @@
 
 
 use sqlx::sqlite::SqlitePool;
+use serde::{Serialize,Deserialize};
 use sqlx::{FromRow};
 use uuid::Uuid;
 use serde_json::json;
 
 use crate::core::graph_components::{Action,NodeType};
-#[derive(FromRow)]
+#[derive(FromRow,Serialize,Deserialize,Debug)]
 pub struct Goal {
     id: String,
     node_id:String,
@@ -15,7 +16,7 @@ pub struct Goal {
     status: String,
 }
 
-
+#[typetag::serde]
 impl Action for Goal{
     fn get_uuid(&self)->&str {
         return &self.id

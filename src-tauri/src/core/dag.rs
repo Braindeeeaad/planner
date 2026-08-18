@@ -13,7 +13,7 @@ use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals};
 use crate::db::connection::{establish_connection};
 use crate::core::graph_components::{Node,DagError,Action,upload_node};
 
-
+use serde_json::json;
 
 //We can make a hash-map relating uuid:Node
 //1.Need function that downloads Nodes(Tasks/Habits) from sql and configures hashmap 
@@ -157,8 +157,13 @@ impl Dag{
             None   
         }
     }
-    pub fn to_string()->String{
-        todo!()
+    pub fn to_string(&self)->String{
+        let value = json!({
+            "nodes": self.nodes, 
+            "successors": self.successors,
+            "predecessors": self.predecessors
+        });
+        value.to_string()
     }
 
 }

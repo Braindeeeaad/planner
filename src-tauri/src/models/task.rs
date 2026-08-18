@@ -1,5 +1,7 @@
 use sqlx::sqlite::SqlitePool;
+
 use sqlx::{FromRow, Row, sqlite::SqliteRow};
+use serde::{Serialize,Deserialize};
 use std::ffi::NulError;
 use std::marker::PhantomData;
 use uuid::Uuid;
@@ -7,7 +9,7 @@ use crate::core::graph_components::{Action,NodeType};
 use std::any::TypeId;
 use serde_json::json;
 
-#[derive(Clone,FromRow)]
+#[derive(Clone,FromRow,Serialize,Deserialize,Debug)]
 pub struct Task {
     id: String,
     node_id:String,
@@ -32,7 +34,7 @@ pub struct Task {
 
 */
 
-
+#[typetag::serde]
 impl Action for Task{
     fn get_uuid(&self)->&str {
         &self.id

@@ -1,5 +1,6 @@
 use sqlx::FromRow; 
 use uuid::Uuid;
+use serde::{Serialize,Deserialize};
 use sqlx::{SqlitePool};
 use serde_json::json;
 
@@ -7,7 +8,7 @@ use crate::core::graph_components::{Action,NodeType};
 
 
 
-#[derive(Debug,FromRow,Clone)] 
+#[derive(Debug,FromRow,Clone,Serialize,Deserialize)] 
 pub struct Habit{
     id: String, 
     node_id: String, 
@@ -18,7 +19,7 @@ pub struct Habit{
     streak_count: u32,
 }
 
-
+#[typetag::serde]
 impl Action for Habit{
     fn get_uuid(&self)->&str {
         &self.id
