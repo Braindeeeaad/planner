@@ -3,13 +3,14 @@ use sqlx::{FromRow, Row, sqlite::SqliteRow};
 use std::ffi::NulError;
 use std::marker::PhantomData;
 use uuid::Uuid;
-use crate::core::dag::Action;
+use crate::core::graph_components::{Action,NodeType};
 use std::any::TypeId;
-
+use serde_json::json;
 
 #[derive(Clone,FromRow)]
 pub struct Task {
     id: String,
+    node_id:String,
     goal_id: Option<String>,
     event_context_id: Option<String>,
     title: String,
@@ -36,11 +37,18 @@ impl Action for Task{
     fn get_uuid(&self)->&str {
         &self.id
     }
+    fn get_json_str(&self)->String {
+        self.get_json_str()
+    }
+    fn get_node_type(&self)->NodeType {
+        NodeType::TASK
+    }
 }
 
 
 impl Task{
     pub fn new(
+        id:&str,
         goal_id: Option<String>,
         event_context_id: Option<String>,
         title: String,
@@ -54,7 +62,8 @@ impl Task{
         status: String,
     ) -> Self {
         Self {
-            id: Uuid::new_v4().to_string(),
+            id: String::from(id),
+            node_id: String::from(id),
             goal_id,
             event_context_id,
             title,
@@ -68,14 +77,34 @@ impl Task{
             status,
         }
     }
+    pub fn get_json_str(&self)->String{
+        let self_json = json!({
+            "type":"TASK",
+            "id":self.id,
+            "node_id":self.node_id, 
+            "goal_id":self.goal_id, 
+            "event_context_id":self.event_context_id, 
+            "title":self.title,
+            "task_type":self.task_type,
+            "base_duration":self.base_duration,
+            "schedule_start":self.schedule_start,
+            "schedule_end":self.schedule_end,
+            "urgency_score":self.urgency_score,
+            "importance_score":self.importance_score,
+            "priority_weight":self.priority_weight,
+            "status":self.status,
+        }); 
+        self_json.to_string() 
+    }
 }
 
 pub async fn upload_task( pool: &SqlitePool, task: &Task) -> anyhow::Result<()> {
     let query = "INSERT INTO tasks
-                       (id,goal_id,event_context_id,title,task_type,base_duration,schedule_start,schedule_end,urgency_score,importance_score,priority_weight,status)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)";
+                       (id,node_id,goal_id,event_context_id,title,task_type,base_duration,schedule_start,schedule_end,urgency_score,importance_score,priority_weight,status)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,&13)";
     sqlx::query(query)
         .bind(&task.id)
+        .bind(&task.node_id)
         .bind(&task.goal_id)
         .bind(&task.event_context_id)
         .bind(&task.title)
@@ -130,6 +159,17 @@ pub struct TaskDependency {
     pub goal_id: String
 }
 
+impl TaskDependency{
+    pub fn get_json_str(&self)->String{
+        let self_json = json!({
+            "type":"EDGE",
+            "predecessor_id":self.predecessor_id, 
+            "successor_id":self.successor_id, 
+            "goal_id":self.goal_id
+        }); 
+        self_json.to_string() 
+    }
+}
 pub async fn upload_task_dependency(
     pool: &SqlitePool,
     predecessor_id: &str,

@@ -11,47 +11,7 @@ use crate::models::habit::{Habit,upload_habit,delete_habit,get_habits};
 use crate::models::task::{Task, TaskDependency, delete_task, get_task_dependencies, get_tasks, upload_task, upload_task_dependency}; 
 use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals};
 use crate::db::connection::{establish_connection};
-
-#[derive(Error,Debug)]
-pub enum DagError{
-    #[error("Edge error: {message}")]
-    EdgeError{message:String},
-
-    #[error("Node error: {message}")]
-    NodeError{message:String},
-}
-
-
-pub trait Action{
-    fn get_uuid(&self)->&str;
-}
-
-
-struct Node{
-    item: Box<dyn Action>
-} 
-
-impl Node{
-    pub fn new(action: impl Action + 'static) -> Self{
-        Self{
-            item: Box::new(action),
-        }
-    }
-
-}
-
-
-struct Edge{
-    edge:(String,String)
-}
-
-impl Edge{
-    pub fn new(node_hash1:String,node_hash2:String)->Self{
-        Self{
-            edge:(node_hash1,node_hash2)
-        }
-    }
-}
+use crate::core::graph_components::{Node,DagError,Action,upload_node};
 
 
 
@@ -105,10 +65,14 @@ impl Dag{
         let task_dependencies = get_task_dependencies(&self.pool, self.goal.get_id()).await?;
         
         for task in tasks{
-            self.nodes.insert(String::from(task.get_uuid()),Node::new(task));
+            self.nodes.insert(String::from(task.get_uuid()),Node::new(task,None,None));
         }
         for habit in habits{
-            self.nodes.insert(String::from(habit.get_uuid()),Node::new(habit));
+            self.nodes.insert(String::from(habit.get_uuid()),Node::new(habit,None,None));
+        }
+        //TODO: turn this O(n) fetch into a singular batch coords fetch
+        for (_, node) in &mut self.nodes{
+            node.fetch_coords(&self.pool).await?;
         }
         for task_dep in task_dependencies{
             let succ_id = String::from(task_dep.successor_id); 
@@ -135,26 +99,27 @@ impl Dag{
         predecessor_vec.push(predecessor_id);
         Ok(())
     }
-    pub async fn add_task(&mut self,task:Task)-> anyhow::Result<()>{
+    pub async fn add_task(&mut self,task:Task,x:Option<f32>,y:Option<f32>)-> anyhow::Result<()>{
         
         if !self.nodes.get(task.get_uuid()).is_some(){
             Err(DagError::NodeError { message: ("Task already exists".to_string()) })?;
         }
 
         upload_task(&self.pool, &task).await?;
-
-        self.nodes.insert(String::from(task.get_uuid()),Node::new(task));
+        let node = upload_node(&self.pool, task, x, y).await?;
+        self.nodes.insert(String::from(node.item.get_uuid()),node);
         
         Ok(())
     }
-    pub async fn add_habit(&mut self, habit:Habit)->anyhow::Result<()>{
+    pub async fn add_habit(&mut self, habit:Habit,x:Option<f32>,y:Option<f32>)->anyhow::Result<()>{
         if !self.nodes.get(habit.get_uuid()).is_some(){
             Err(DagError::NodeError { message: ("Habit already exists".to_string()) })?;
         }
 
         upload_habit(&self.pool, &habit).await?;
 
-        self.nodes.insert(String::from(habit.get_uuid()),Node::new(habit));
+        let node = upload_node(&self.pool, habit, x, y).await?;
+        self.nodes.insert(String::from(node.item.get_uuid()),node);
         
         Ok(())
     }
@@ -191,6 +156,9 @@ impl Dag{
         else{
             None   
         }
+    }
+    pub fn to_string()->String{
+        todo!()
     }
 
 }

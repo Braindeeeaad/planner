@@ -19,17 +19,29 @@ CREATE TABLE event_contexts (
     FOREIGN KEY (end_location_id) REFERENCES locations(id)
 );
 
+
+CREATE TABLE nodes (
+    id TEXT PRIMARY KEY, 
+    x FLOAT, 
+    y FLOAT, 
+);
+
+
 -- 3. Goals (Top-level aspirations)
 CREATE TABLE goals (
     id TEXT PRIMARY KEY,
+    node_id TEXT,
     title TEXT NOT NULL,               -- e.g., "Pass Calculus with an A"
     target_date TEXT NOT NULL,         -- ISO8601 date string
     status TEXT NOT NULL               -- "active", "completed", "archived"
+    version INTEGER NOT NULL DEFAULT 0
+    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 );
 
 -- 4. Tasks (Actionable items, commutes, and checkpoints)
 CREATE TABLE tasks (
     id TEXT PRIMARY KEY,
+    node_id TEXT,
     goal_id TEXT,
     event_context_id TEXT,
     title TEXT NOT NULL,
@@ -41,8 +53,9 @@ CREATE TABLE tasks (
     importance_score REAL DEFAULT 0.0,
     priority_weight REAL DEFAULT 0.0,
     status TEXT NOT NULL,              -- "pending", "completed", "postponed"
-    FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE CASCADE,
+    FOREIGN KEY (goal_id) REFERENCES goals(id),
     FOREIGN KEY (event_context_id) REFERENCES event_contexts(id) ON DELETE SET NULL
+    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 );
 
 -- 5. Task Dependencies (DAG Edges)
@@ -51,20 +64,23 @@ CREATE TABLE task_dependencies (
     successor_id TEXT NOT NULL,        -- Depends on predecessor
     goal_id TEXT NOT NULL, 
     PRIMARY KEY (predecessor_id, successor_id),
-    FOREIGN KEY (predecessor_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (successor_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (predecessor_id) REFERENCES tasks(id),
+    FOREIGN KEY (successor_id) REFERENCES tasks(id),
     FOREIGN KEY (goal_id) REFERENCES goals(id)
 );
 
 -- 6. Habits (Templates that generate recurring tasks)
 CREATE TABLE habits (
     id TEXT PRIMARY KEY,
+    node_id TEXT,
     goal_id TEXT,
     title TEXT NOT NULL,
     frequency TEXT NOT NULL,           -- e.g., "daily", "weekly"
     target_time INTEGER NOT NULL,      -- Duration in minutes
     streak_count INTEGER DEFAULT 0,
     FOREIGN KEY (goal_id) REFERENCES goals(id) ON DELETE SET NULL
+    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE 
+
 );
 
 -- 7. Task Feedback (Adaptive learning loop data)
@@ -76,7 +92,7 @@ CREATE TABLE task_feedback (
     user_sentiment TEXT,               -- "easy", "just_right", "struggled", "overdue"
     completion_quality INTEGER,        -- Scale 1-5 evaluated via SLM
     created_at TEXT NOT NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+    FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
 
 -- 8. User Ability Profile (Bayesian multipliers for time estimation)
@@ -95,5 +111,5 @@ CREATE TABLE grade_items (
     earned_score REAL,                 -- Points earned
     max_score REAL NOT NULL,           -- Total possible points
     target_grade REAL,                 -- Desired score
-    FOREIGN KEY (event_context_id) REFERENCES event_contexts(id) ON DELETE CASCADE
+    FOREIGN KEY (event_context_id) REFERENCES event_contexts(id) 
 );
