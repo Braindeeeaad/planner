@@ -188,7 +188,7 @@ pub async fn upload_task_dependency(
     Ok(())
 }
 
-pub async fn delete_goal(pool:&SqlitePool, successor_id: &str, predecessor_id: &str)->anyhow::Result<()>{
+pub async fn delete_task_dependency(pool:&SqlitePool, successor_id: &str, predecessor_id: &str)->anyhow::Result<()>{
     let query = "DELETE FROM task_dependencies WHERE (successor_id=$1 AND predecessor_id=$2)";
     sqlx::query(query)
         .bind(successor_id)

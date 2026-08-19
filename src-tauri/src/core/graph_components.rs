@@ -92,4 +92,13 @@ pub async fn upload_node(pool:&SqlitePool,action: impl Action + 'static,x:Option
     Ok(node)
 }
 
+pub async fn delete_node(pool:&SqlitePool, node:Node)->anyhow::Result<()>{
+    let query = "DELETE FROM nodes WHERE (id = $1)"; 
+    sqlx::query(query)
+        .bind(node.id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 

@@ -8,10 +8,10 @@ use thiserror::Error;
 //Make sure there's logic that prevents cross-edges that break dag and back-edges 
 //Add Topological sort
 use crate::models::habit::{Habit,upload_habit,delete_habit,get_habits}; 
-use crate::models::task::{Task, TaskDependency, delete_task, get_task_dependencies, get_tasks, upload_task, upload_task_dependency}; 
+use crate::models::task::{Task, TaskDependency, delete_task, get_task_dependencies, get_tasks, upload_task, upload_task_dependency,delete_task_dependency}; 
 use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals};
 use crate::db::connection::{establish_connection};
-use crate::core::graph_components::{Node,DagError,Action,upload_node};
+use crate::core::graph_components::{Node,DagError,Action,upload_node,delete_node};
 
 use serde_json::json;
 
@@ -27,22 +27,16 @@ struct Dag{
     pool:SqlitePool,
     goal:Goal,
 
-    nodes:HashMap<String,Node>, 
-    //Screw loop cycle checks, instead write user changes to db first
-    //Then copy it down into in mem-dag(write-through persistence)
-    //Can remove the db::connection::{States} usage throughout and just have 
-    //Normal structs 
-    
-
-    //Can map task_dependencies to here
-    //If user deletes task_dependecy, first delete db task_dependency 
-    //Then query predecessor into successor Hashmap and delete respective succesor 
-    //Vice versa for predocessors, query in sucessor from task_dependency into predecssor, and delete respective predecessor 
-    
+    nodes:HashMap<String,Node>,     
     successors: HashMap<String, Vec<String>>, 
-
     predecessors: HashMap<String, Vec<String>>
 }
+
+//1.Make a delete node function
+
+//2.Need to create a delete_edge function when given one hash deletes all instances of that hash in both
+//  predecessors and sucessors, when given both edge hashes only deletes those hashes 
+
 
 
 impl Dag{
@@ -101,7 +95,7 @@ impl Dag{
     }
     pub async fn add_task(&mut self,task:Task,x:Option<f32>,y:Option<f32>)-> anyhow::Result<()>{
         
-        if !self.nodes.get(task.get_uuid()).is_some(){
+        if self.nodes.get(task.get_uuid()).is_some(){
             Err(DagError::NodeError { message: ("Task already exists".to_string()) })?;
         }
 
@@ -112,7 +106,7 @@ impl Dag{
         Ok(())
     }
     pub async fn add_habit(&mut self, habit:Habit,x:Option<f32>,y:Option<f32>)->anyhow::Result<()>{
-        if !self.nodes.get(habit.get_uuid()).is_some(){
+        if self.nodes.get(habit.get_uuid()).is_some(){
             Err(DagError::NodeError { message: ("Habit already exists".to_string()) })?;
         }
 
@@ -123,7 +117,42 @@ impl Dag{
         
         Ok(())
     }
+    pub async fn delete_graph_node(&mut self,id:&str)->anyhow::Result<()>{
+        if !self.nodes.get(id).is_some(){
+            Err(DagError::NodeError { message: ("Node doesn't exist".to_string()) })?;
+        }
 
+        delete_node(&self.pool, self.nodes.remove(id).unwrap()).await?;
+        self.delete_all_incoming_and_outgoing_edges(id).await?;   
+        Ok(())
+    }
+    pub async fn delete_edge(&mut self,predecessor_id:&str, successor_id:&str)-> anyhow::Result<()>{
+        _ = self.successors.get_mut(predecessor_id)
+                                .unwrap()
+                                .extract_if(.., |x|x == successor_id);
+        _ = self.predecessors.get_mut(successor_id)
+                                .unwrap()
+                                .extract_if(.., |x| x == predecessor_id);
+        delete_task_dependency(&self.pool, successor_id, predecessor_id).await?;
+        Ok(())
+    }
+    pub async fn delete_all_incoming_and_outgoing_edges(&mut self, node_id:&str)->anyhow::Result<()>{
+        let sucessors = self.successors.remove(node_id);
+        let predecessors = self.predecessors.remove(node_id);
+        for pred in predecessors.unwrap(){
+            delete_task_dependency(&self.pool, node_id, &pred).await?;
+            _ = self.successors.get_mut(&pred)
+                                    .unwrap()
+                                    .extract_if(.., |x| x==node_id);
+        }
+        for succ in sucessors.unwrap(){
+            delete_task_dependency(&self.pool, &succ, node_id).await?;
+            _ = self.predecessors.get_mut(&succ)
+                                    .unwrap()
+                                    .extract_if(..,|x| x ==node_id);
+        }
+        Ok(())
+    }
     pub fn topological_sort(&mut self)->Option<Vec<&str>>{
         let mut queue: VecDeque<&str> = VecDeque::new();
         let mut in_degree: HashMap<&str,usize> = HashMap::new();
