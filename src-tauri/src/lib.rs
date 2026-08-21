@@ -8,10 +8,10 @@ use db::connection::{establish_connection};
 use models::goal::{get_goal};
 use serde_json::{Value};
 #[tauri::command] 
-async fn get_snapshot(goal_id:String) -> Value{
-    let dag = Dag::new(&goal_id).await?;
-    dag.download_dag().await?;
-    dag.to_snapshot()
+async fn get_snapshot(goal_id:String) -> anyhow::Result<Value>{
+    let mut dag = Dag::new(&goal_id).await?;
+    dag.download_dag().await;
+    Ok(dag.to_snapshot())
 }
 
 
