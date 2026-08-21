@@ -1,6 +1,6 @@
 use std::vec;
 use std::collections::{HashMap,VecDeque};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::Sqlite;
 use sqlx::Row;
 use sqlx::sqlite::SqlitePool;
@@ -26,7 +26,7 @@ pub enum DagError{
     NodeError{message:String},
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize)]
 pub enum NodeType{
     HABIT, 
     GOAL, 
@@ -40,7 +40,7 @@ pub trait Action{
     fn get_node_type(&self)->NodeType; 
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Deserialize)]
 pub struct Node{
     id:String,
     node_type: NodeType, 

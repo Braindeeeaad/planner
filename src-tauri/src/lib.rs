@@ -1,4 +1,20 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+pub mod core;
+pub mod models; 
+pub mod db; 
+
+use core::dag::{Dag,Snapshot};
+use db::connection::{establish_connection};
+use models::goal::{get_goal};
+use serde_json::{Value};
+#[tauri::command] 
+async fn get_snapshot(goal_id:String) -> Value{
+    let dag = Dag::new(&goal_id).await?;
+    dag.download_dag().await?;
+    dag.to_snapshot()
+}
+
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     let return_str = format!("Hello, {}! You've been greeted from Rust!", name);

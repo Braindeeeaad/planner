@@ -92,3 +92,12 @@ pub async fn get_goals(pool: &SqlitePool) -> anyhow::Result<Vec<Goal>> {
             .await?;
     Ok(goals)
 }
+
+pub async fn get_goal(pool: &SqlitePool,goal_id:&str) -> anyhow::Result<Goal> {
+    let goal =
+        sqlx::query_as::<_, Goal>(r#"SELECT id,title,target_date,status FROM goals WHERE (id=$1"#)
+            .bind(goal_id)
+            .fetch_one(pool)
+            .await?;
+    Ok(goal)
+}

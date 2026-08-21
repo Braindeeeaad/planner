@@ -1,5 +1,6 @@
 use std::vec;
 use std::collections::{HashMap,VecDeque};
+use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use thiserror::Error;
 //Would help if I maintained my own dag datastructure in mem to manipulate then save periodically to the db 
@@ -9,11 +10,11 @@ use thiserror::Error;
 //Add Topological sort
 use crate::models::habit::{Habit,upload_habit,delete_habit,get_habits}; 
 use crate::models::task::{Task, TaskDependency, delete_task, get_task_dependencies, get_tasks, upload_task, upload_task_dependency,delete_task_dependency}; 
-use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals};
+use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals, get_goal};
 use crate::db::connection::{establish_connection};
 use crate::core::graph_components::{Node,DagError,Action,upload_node,delete_node};
 
-use serde_json::json;
+use serde_json::{Value, json};
 
 //We can make a hash-map relating uuid:Node
 //1.Need function that downloads Nodes(Tasks/Habits) from sql and configures hashmap 
@@ -21,13 +22,20 @@ use serde_json::json;
 //3.Need to implement appropriate upload and delete functions for task dependencies 
 //4.We could make another hashmap using the uuids of the first element of the edges, and the respective 
 //  vector of edges that exist there
-struct Dag{
+pub struct Dag{
     
 
     pool:SqlitePool,
+
     goal:Goal,
 
-    nodes:HashMap<String,Node>,     
+    sn:Snapshot
+}
+
+#[derive(Serialize,Deserialize)]
+pub struct Snapshot{
+
+    nodes:HashMap<String,Node>, 
     successors: HashMap<String, Vec<String>>, 
     predecessors: HashMap<String, Vec<String>>
 }
@@ -40,39 +48,42 @@ struct Dag{
 
 
 impl Dag{
-    pub async fn new(goal:Goal)->anyhow::Result<Self>{
+    pub async fn new(goal_id:&str)->anyhow::Result<Self>{
         let pool =  establish_connection().await?;
+        let goal = get_goal(&pool, goal_id).await?;
         Ok(
             Self{   
             pool,
             goal,
-            nodes:HashMap::new(), 
-            successors:HashMap::new(), 
-            predecessors:HashMap::new() 
-            
+            sn:
+                Snapshot{
+                    nodes:HashMap::new(), 
+                    successors:HashMap::new(), 
+                    predecessors:HashMap::new() 
+                }
         })
 
     }
-    async fn download_dag(&mut self)->anyhow::Result<()>{ 
+    pub async fn download_dag(&mut self)->anyhow::Result<()>{ 
         let tasks = get_tasks(&self.pool, Some(self.goal.get_id())).await?;
         let habits = get_habits(&self.pool, Some(self.goal.get_id())).await?;
         let task_dependencies = get_task_dependencies(&self.pool, self.goal.get_id()).await?;
         
         for task in tasks{
-            self.nodes.insert(String::from(task.get_uuid()),Node::new(task,None,None));
+            self.sn.nodes.insert(String::from(task.get_uuid()),Node::new(task,None,None));
         }
         for habit in habits{
-            self.nodes.insert(String::from(habit.get_uuid()),Node::new(habit,None,None));
+            self.sn.nodes.insert(String::from(habit.get_uuid()),Node::new(habit,None,None));
         }
         //TODO: turn this O(n) fetch into a singular batch coords fetch
-        for (_, node) in &mut self.nodes{
+        for (_, node) in &mut self.sn.nodes{
             node.fetch_coords(&self.pool).await?;
         }
         for task_dep in task_dependencies{
             let succ_id = String::from(task_dep.successor_id); 
             let pred_id = String::from(task_dep.predecessor_id); 
-            let sucessor_vec = self.successors.entry(pred_id.clone()).or_insert(Vec::new());
-            let predecessor_vec = self.predecessors.entry(succ_id.clone()).or_insert(Vec::new());
+            let sucessor_vec = self.sn.successors.entry(pred_id.clone()).or_insert(Vec::new());
+            let predecessor_vec = self.sn.predecessors.entry(succ_id.clone()).or_insert(Vec::new());
             sucessor_vec.push(succ_id);
             predecessor_vec.push(pred_id);
 
@@ -81,73 +92,72 @@ impl Dag{
     }
 
     pub async fn make_edge(&mut self, successor_id:String,predecessor_id:String)-> anyhow::Result<()>{
-        let sucessor_vec = self.successors.entry(String::from(&predecessor_id)).or_insert(Vec::new());
-        let predecessor_vec = self.predecessors.entry(String::from(&successor_id)).or_insert(Vec::new());
+        let sucessor_vec = self.sn.successors.entry(String::from(&predecessor_id)).or_insert(Vec::new());
+        let predecessor_vec = self.sn.predecessors.entry(String::from(&successor_id)).or_insert(Vec::new());
         if sucessor_vec.contains(&successor_id) || predecessor_vec.contains(&predecessor_id){
             Err(DagError::EdgeError { message: ("Edge already exists".to_string()) })?;
         }
         
         upload_task_dependency(&self.pool, &predecessor_id, &successor_id, self.goal.get_id()).await?;
 
-        sucessor_vec.push(successor_id); 
-        predecessor_vec.push(predecessor_id);
+          
         Ok(())
     }
     pub async fn add_task(&mut self,task:Task,x:Option<f32>,y:Option<f32>)-> anyhow::Result<()>{
         
-        if self.nodes.get(task.get_uuid()).is_some(){
+        if self.sn.nodes.get(task.get_uuid()).is_some(){
             Err(DagError::NodeError { message: ("Task already exists".to_string()) })?;
         }
 
         upload_task(&self.pool, &task).await?;
         let node = upload_node(&self.pool, task, x, y).await?;
-        self.nodes.insert(String::from(node.item.get_uuid()),node);
+        self.sn.nodes.insert(String::from(node.item.get_uuid()),node);
         
         Ok(())
     }
     pub async fn add_habit(&mut self, habit:Habit,x:Option<f32>,y:Option<f32>)->anyhow::Result<()>{
-        if self.nodes.get(habit.get_uuid()).is_some(){
+        if self.sn.nodes.get(habit.get_uuid()).is_some(){
             Err(DagError::NodeError { message: ("Habit already exists".to_string()) })?;
         }
 
         upload_habit(&self.pool, &habit).await?;
 
         let node = upload_node(&self.pool, habit, x, y).await?;
-        self.nodes.insert(String::from(node.item.get_uuid()),node);
+        self.sn.nodes.insert(String::from(node.item.get_uuid()),node);
         
         Ok(())
     }
-    pub async fn delete_graph_node(&mut self,id:&str)->anyhow::Result<()>{
-        if !self.nodes.get(id).is_some(){
+    pub async fn delete_node(&mut self,id:&str)->anyhow::Result<()>{
+        if !self.sn.nodes.get(id).is_some(){
             Err(DagError::NodeError { message: ("Node doesn't exist".to_string()) })?;
         }
 
-        delete_node(&self.pool, self.nodes.remove(id).unwrap()).await?;
+        delete_node(&self.pool, self.sn.nodes.remove(id).unwrap()).await?;
         self.delete_all_incoming_and_outgoing_edges(id).await?;   
         Ok(())
     }
     pub async fn delete_edge(&mut self,predecessor_id:&str, successor_id:&str)-> anyhow::Result<()>{
-        _ = self.successors.get_mut(predecessor_id)
+        _ = self.sn.successors.get_mut(predecessor_id)
                                 .unwrap()
                                 .extract_if(.., |x|x == successor_id);
-        _ = self.predecessors.get_mut(successor_id)
+        _ = self.sn.predecessors.get_mut(successor_id)
                                 .unwrap()
                                 .extract_if(.., |x| x == predecessor_id);
         delete_task_dependency(&self.pool, successor_id, predecessor_id).await?;
         Ok(())
     }
     pub async fn delete_all_incoming_and_outgoing_edges(&mut self, node_id:&str)->anyhow::Result<()>{
-        let sucessors = self.successors.remove(node_id);
-        let predecessors = self.predecessors.remove(node_id);
+        let sucessors = self.sn.successors.remove(node_id);
+        let predecessors = self.sn.predecessors.remove(node_id);
         for pred in predecessors.unwrap(){
             delete_task_dependency(&self.pool, node_id, &pred).await?;
-            _ = self.successors.get_mut(&pred)
+            _ = self.sn.successors.get_mut(&pred)
                                     .unwrap()
                                     .extract_if(.., |x| x==node_id);
         }
         for succ in sucessors.unwrap(){
             delete_task_dependency(&self.pool, &succ, node_id).await?;
-            _ = self.predecessors.get_mut(&succ)
+            _ = self.sn.predecessors.get_mut(&succ)
                                     .unwrap()
                                     .extract_if(..,|x| x ==node_id);
         }
@@ -157,7 +167,7 @@ impl Dag{
         let mut queue: VecDeque<&str> = VecDeque::new();
         let mut in_degree: HashMap<&str,usize> = HashMap::new();
         let mut topo_sort: Vec<&str> = Vec::new();
-        for (uuid,vec) in &self.predecessors{
+        for (uuid,vec) in &self.sn.predecessors{
             let count = vec.len();
             in_degree.insert(uuid,count);
             if count == 0{
@@ -168,7 +178,7 @@ impl Dag{
         while queue.len() != 0{
             let node_uuid = queue.pop_front().expect("Queue should never be empty");
             topo_sort.push(node_uuid);
-            let successor_ids = self.successors.get(node_uuid).unwrap();
+            let successor_ids = self.sn.successors.get(node_uuid).unwrap();
             for succ_uuid in successor_ids{
                 let count = in_degree.get_mut(succ_uuid.as_str()).unwrap();
                 *count-=1; 
@@ -179,20 +189,23 @@ impl Dag{
             }
         }
 
-        if self.nodes.len() == topo_sort.len(){
+        if self.sn.nodes.len() == topo_sort.len(){
             Some(topo_sort)
         }
         else{
             None   
         }
     }
-    pub fn to_string(&self)->String{
+    pub fn to_json_string(&self)->String{
         let value = json!({
-            "nodes": self.nodes, 
-            "successors": self.successors,
-            "predecessors": self.predecessors
+            "nodes": self.sn.nodes, 
+            "successors": self.sn.successors,
+            "predecessors": self.sn.predecessors
         });
         value.to_string()
+    }
+    pub fn to_snapshot(&self)->Value{
+        serde_json::to_value(&self.sn).unwrap()
     }
 
 }
