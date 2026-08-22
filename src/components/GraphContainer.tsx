@@ -1,0 +1,86 @@
+import React, { useState, useEffect } from "react";
+import type { Node, Edge } from "@xyflow/react";
+import { fetchSnapshot } from "../api/fetchSnapshot";
+import type { Snapshot } from "../types";
+import { GraphView } from "../graph/GraphView";
+
+const initialNodes: Node[] = [
+  { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
+  { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } },
+];
+
+const initialEdges: Edge[] = [
+  { id: "n1-n2", source: "n1", target: "n2" }
+];
+
+const GOAL_ID = "goal-1";
+
+function snapshotToFlow(snapshot: Snapshot): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = Object.values(snapshot.nodes).map((n) => {
+    // 1. Safely check if the API provided actual numbers for x and y
+    // We use typeof instead of truthiness so we don't accidentally ignore a valid 0 coordinate
+    const hasSavedPosition = typeof n.x === "number" && typeof n.y === "number";
+
+    return {
+      id: n.id,
+      position: { x: n.x ?? 0, y: n.y ?? 0 },
+      data: { 
+        label: n.item.title, 
+        nodeType: n.nodeType,
+        // 2. Pass the flag directly into the node's data payload
+        layouted: hasSavedPosition 
+      },
+    };
+  });
+
+  const edges: Edge[] = Object.entries(snapshot.successors).flatMap(
+    ([sourceId, targetIds]) =>
+      targetIds.map((targetId) => ({
+        id: `${sourceId}-${targetId}`,
+        source: sourceId,
+        target: targetId,
+      }))
+  );
+
+  return { nodes, edges };
+}
+
+export default function GraphContainer() {
+  const [nodes, setNodes] = useState<Node[]>(initialNodes);
+  const [edges, setEdges] = useState<Edge[]>(initialEdges);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      const snapshot = await fetchSnapshot(GOAL_ID);
+
+      if (cancelled) return;
+
+      if (snapshot) {
+        const { nodes: flowNodes, edges: flowEdges } = snapshotToFlow(snapshot);
+        setNodes(flowNodes);
+        setEdges(flowEdges);
+      }
+
+      setLoading(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <GraphView
+      nodes={nodes}
+      edges={edges}
+      setNodes={setNodes}
+      setEdges={setEdges}
+      loading={loading}
+    />
+  );
+}
