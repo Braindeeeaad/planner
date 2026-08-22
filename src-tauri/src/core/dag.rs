@@ -69,6 +69,8 @@ impl Dag{
         let habits = get_habits(&self.pool, Some(self.goal.get_id())).await?;
         let task_dependencies = get_task_dependencies(&self.pool, self.goal.get_id()).await?;
         
+        //Insert root node before rest
+        self.sn.nodes.insert(String::from(self.goal.get_uuid()),Node::new(self.goal.clone(),None,None));
         for task in tasks{
             self.sn.nodes.insert(String::from(task.get_uuid()),Node::new(task,None,None));
         }

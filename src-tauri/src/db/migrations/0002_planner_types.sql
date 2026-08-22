@@ -82,7 +82,8 @@ INSERT INTO task_dependencies (predecessor_id, successor_id, goal_id) VALUES
   ('task-1', 'task-2', 'goal-1'),
   ('task-1', 'task-3', 'goal-1'),
   ('task-2', 'task-4', 'goal-1'),
-  ('task-3', 'task-4', 'goal-1');
+  ('task-3', 'task-4', 'goal-1'),
+  ('goal-1', 'task-1', 'goal-1');
 
 -- --------------------------------------------------------------
 -- Habit: recurring template feeding into the same goal

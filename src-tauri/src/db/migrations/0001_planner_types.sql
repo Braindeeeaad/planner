@@ -65,8 +65,8 @@ CREATE TABLE task_dependencies (
     successor_id TEXT NOT NULL,        -- Depends on predecessor
     goal_id TEXT NOT NULL, 
     PRIMARY KEY (predecessor_id, successor_id),
-    FOREIGN KEY (predecessor_id) REFERENCES tasks(id),
-    FOREIGN KEY (successor_id) REFERENCES tasks(id),
+    FOREIGN KEY (predecessor_id) REFERENCES nodes(id),
+    FOREIGN KEY (successor_id) REFERENCES nodes(id),
     FOREIGN KEY (goal_id) REFERENCES goals(id)
 );
 

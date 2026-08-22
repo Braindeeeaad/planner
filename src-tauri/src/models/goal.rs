@@ -7,7 +7,7 @@ use uuid::Uuid;
 use serde_json::json;
 
 use crate::core::graph_components::{Action,NodeType};
-#[derive(FromRow,Serialize,Deserialize,Debug)]
+#[derive(FromRow,Serialize,Deserialize,Debug,Clone)]
 pub struct Goal {
     id: String,
     node_id:String,
