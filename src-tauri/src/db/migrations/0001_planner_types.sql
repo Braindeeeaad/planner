@@ -21,9 +21,10 @@ CREATE TABLE event_contexts (
 
 
 CREATE TABLE nodes (
-    id TEXT PRIMARY KEY, 
-    x FLOAT, 
-    y FLOAT, 
+     id TEXT PRIMARY KEY,
+     node_type TEXT NOT NULL,  -- "goal", "task", "habit"
+    x REAL,
+    y REAL
 );
 
 
@@ -33,8 +34,8 @@ CREATE TABLE goals (
     node_id TEXT,
     title TEXT NOT NULL,               -- e.g., "Pass Calculus with an A"
     target_date TEXT NOT NULL,         -- ISO8601 date string
-    status TEXT NOT NULL               -- "active", "completed", "archived"
-    version INTEGER NOT NULL DEFAULT 0
+    status TEXT NOT NULL,               -- "active", "completed", "archived"
+    version INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 );
 

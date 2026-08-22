@@ -34,18 +34,19 @@ pub enum NodeType{
 }
 
 #[typetag::serde(tag="type")]
-pub trait Action{
+pub trait Action: Send + Sync{
     fn get_uuid(&self)->&str;
     fn get_json_str(&self)->String;
     fn get_node_type(&self)->NodeType; 
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize)]
 pub struct Node{
     id:String,
     node_type: NodeType, 
     x:Option<f32>, 
     y:Option<f32>,
+
     pub item: Box<dyn Action>
 } 
 
@@ -66,7 +67,7 @@ impl Node{
     }
 
     pub async fn fetch_coords(&mut self,pool:&SqlitePool)->anyhow::Result<()>{
-        let query = "SELECT (x,y) FROM nodes WHERE id=$1";
+        let query = "SELECT x,y FROM nodes WHERE id=$1";
         let row = sqlx::query(query)
             .bind(&self.id)
             .fetch_one(pool)

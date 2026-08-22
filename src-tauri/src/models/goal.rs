@@ -87,7 +87,7 @@ pub async fn delete_goal(pool:&SqlitePool, goal:Goal)->anyhow::Result<()>{
 
 pub async fn get_goals(pool: &SqlitePool) -> anyhow::Result<Vec<Goal>> {
     let goals =
-        sqlx::query_as::<_, Goal>(r#"SELECT id,title,target_date,status FROM goals"#)
+        sqlx::query_as::<_, Goal>(r#"SELECT id,node_id,title,target_date,status FROM goals"#)
             .fetch_all(pool)
             .await?;
     Ok(goals)
@@ -95,7 +95,7 @@ pub async fn get_goals(pool: &SqlitePool) -> anyhow::Result<Vec<Goal>> {
 
 pub async fn get_goal(pool: &SqlitePool,goal_id:&str) -> anyhow::Result<Goal> {
     let goal =
-        sqlx::query_as::<_, Goal>(r#"SELECT id,title,target_date,status FROM goals WHERE (id=$1"#)
+        sqlx::query_as::<_, Goal>(r#"SELECT id,node_id,title,target_date,status FROM goals WHERE id=$1"#)
             .bind(goal_id)
             .fetch_one(pool)
             .await?;

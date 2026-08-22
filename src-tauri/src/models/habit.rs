@@ -89,7 +89,7 @@ pub async fn delete_habit(pool:&SqlitePool, habit:Habit)->anyhow::Result<()>{
 pub async fn get_habits(pool: &SqlitePool, group_id:Option<&str>) -> anyhow::Result<Vec<Habit>> {
     let habits =
         sqlx::query_as::<_, Habit>(r#"SELECT id,node_id,goal_id,title,frequency,target_time,streak_count FROM habits
-                                                   WHERE ($1 IS NULL or group_id = $1)"#)
+                                                   WHERE ($1 IS NULL or goal_id = $1)"#)
             .bind(group_id)
             .fetch_all(pool)
             .await?;

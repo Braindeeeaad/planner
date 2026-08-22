@@ -7,13 +7,18 @@ use core::dag::{Dag,Snapshot};
 use db::connection::{establish_connection};
 use models::goal::{get_goal};
 use serde_json::{Value};
-#[tauri::command] 
-async fn get_snapshot(goal_id:String) -> anyhow::Result<Value>{
-    let mut dag = Dag::new(&goal_id).await?;
-    dag.download_dag().await;
-    Ok(dag.to_snapshot())
-}
 
+#[tauri::command]
+async fn get_snapshot(goal_id: String) -> Result<Value, String> {
+    let mut dag = Dag::new(&goal_id).await.map_err(|err| format!("{err:?}"))?;
+
+    dag.download_dag().await.map_err(|err| {
+        eprintln!("get_snapshot error: {err:?}");
+        format!("{err:?}")
+    })?;
+
+    serde_json::to_value(dag.to_snapshot()).map_err(|err| format!("{err:?}"))
+}
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -25,7 +30,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet,get_snapshot])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

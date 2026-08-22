@@ -8,7 +8,10 @@ pub mod core;
 
 #[tokio::main] 
 async fn main() {
-    _ = db::connection::init_db().await;
+    if let Err(err) = db::connection::init_db().await {
+    eprintln!("Failed to initialize database: {err}");
+    std::process::exit(1);
+}
     genplanner_lib::run()
 }
 

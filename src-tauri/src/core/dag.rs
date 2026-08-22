@@ -32,7 +32,7 @@ pub struct Dag{
     sn:Snapshot
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize)]
 pub struct Snapshot{
 
     nodes:HashMap<String,Node>, 

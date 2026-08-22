@@ -18,8 +18,8 @@ pub struct Task {
     title: String,
     task_type: String,
     base_duration: u32,
-    schedule_start: String,
-    schedule_end: String,
+    scheduled_start: String,
+    scheduled_end: String,
     urgency_score: f64,
     importance_score: f64,
     priority_weight: f64,
@@ -56,8 +56,8 @@ impl Task{
         title: String,
         task_type: String,
         base_duration: u32,
-        schedule_start: String,
-        schedule_end: String,
+        scheduled_start: String,
+        scheduled_end: String,
         urgency_score: f64,
         importance_score: f64,
         priority_weight: f64,
@@ -71,8 +71,8 @@ impl Task{
             title,
             task_type,
             base_duration,
-            schedule_start,
-            schedule_end,
+            scheduled_start,
+            scheduled_end,
             urgency_score,
             importance_score,
             priority_weight,
@@ -89,8 +89,8 @@ impl Task{
             "title":self.title,
             "task_type":self.task_type,
             "base_duration":self.base_duration,
-            "schedule_start":self.schedule_start,
-            "schedule_end":self.schedule_end,
+            "schedule_start":self.scheduled_start,
+            "schedule_end":self.scheduled_end,
             "urgency_score":self.urgency_score,
             "importance_score":self.importance_score,
             "priority_weight":self.priority_weight,
@@ -102,7 +102,7 @@ impl Task{
 
 pub async fn upload_task( pool: &SqlitePool, task: &Task) -> anyhow::Result<()> {
     let query = "INSERT INTO tasks
-                       (id,node_id,goal_id,event_context_id,title,task_type,base_duration,schedule_start,schedule_end,urgency_score,importance_score,priority_weight,status)
+                       (id,node_id,goal_id,event_context_id,title,task_type,base_duration,scheduled_start,scheduled_end,urgency_score,importance_score,priority_weight,status)
                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,&13)";
     sqlx::query(query)
         .bind(&task.id)
@@ -112,8 +112,8 @@ pub async fn upload_task( pool: &SqlitePool, task: &Task) -> anyhow::Result<()> 
         .bind(&task.title)
         .bind(&task.task_type)
         .bind(&task.base_duration)
-        .bind(&task.schedule_start)
-        .bind(&task.schedule_end)
+        .bind(&task.scheduled_start)
+        .bind(&task.scheduled_end)
         .bind(task.urgency_score)
         .bind(task.importance_score)
         .bind(task.priority_weight)
@@ -139,12 +139,12 @@ pub async fn get_tasks(
 ) -> anyhow::Result<Vec<Task>> {
     let tasks = sqlx::query_as::<_, Task>(
         r#"
-        SELECT id,goal_id,event_context_id,
+        SELECT id,node_id,goal_id,event_context_id,
                title,task_type,base_duration,
-               schedule_start,schedule_end,
+               scheduled_start,scheduled_end,
                urgency_score,importance_score,
                priority_weight,status 
-        FROM tasks WHERE ($1 IS NULL or group_id = $1)"#,
+        FROM tasks WHERE ($1 IS NULL or goal_id = $1)"#,
     )
     .bind(goal_id)
     .fetch_all(pool)
@@ -203,7 +203,7 @@ pub async fn delete_task_dependency(pool:&SqlitePool, successor_id: &str, predec
 pub async fn get_task_dependencies(pool:&SqlitePool,goal_id:&str)->anyhow::Result<Vec<TaskDependency>>{
     let task_deps =
         sqlx::query_as::<_, TaskDependency>(r#"SELECT predecessor_id,successor_id,goal_id FROM task_dependencies 
-                                                            WHERE ($1 IS NULL or group_id = $1)"#)
+                                                            WHERE ($1 IS NULL or goal_id = $1)"#)
             .bind(goal_id)
             .fetch_all(pool)
             .await?;
