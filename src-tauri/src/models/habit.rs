@@ -30,6 +30,14 @@ impl Action for Habit{
     fn get_node_type(&self)->NodeType {
         NodeType::HABIT
     }
+    fn modify_fields(&mut self,json_str:String)->anyhow::Result<()>{
+        let obj:Habit = serde_json::from_str(&json_str)?;
+        self.title = obj.title;
+        self.frequency= obj.frequency;
+        self.target_time = obj.target_time;
+        self.streak_count = obj.streak_count;
+        Ok(())
+    }
 }
 
 impl Habit{

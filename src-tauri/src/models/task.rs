@@ -45,6 +45,19 @@ impl Action for Task{
     fn get_node_type(&self)->NodeType {
         NodeType::TASK
     }
+    fn modify_fields(&mut self,json_str:String)->anyhow::Result<()>{
+        let obj:Task = serde_json::from_str(&json_str)?;
+        self.title = obj.title;
+        self.task_type = obj.task_type;
+        self.base_duration = obj.base_duration;
+        self.scheduled_start = obj.scheduled_start;
+        self.scheduled_end = obj.scheduled_end;
+        self.urgency_score = obj.urgency_score;
+        self.importance_score = obj.importance_score;
+        self.priority_weight = obj.priority_weight;
+        self.status = obj.status;
+        Ok(())
+    }
 }
 
 

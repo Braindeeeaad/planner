@@ -27,6 +27,13 @@ impl Action for Goal{
     fn get_node_type(&self)->NodeType {
         NodeType::GOAL
     }
+    fn modify_fields(&mut self,json_str:String)->anyhow::Result<()>{
+        let obj:Goal = serde_json::from_str(&json_str)?;
+        self.title = obj.title;
+        self.target_date= obj.target_date;
+        self.status = obj.status;
+        Ok(())
+    }
 }
 
 impl Goal {

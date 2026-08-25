@@ -38,6 +38,7 @@ pub trait Action: Send + Sync{
     fn get_uuid(&self)->&str;
     fn get_json_str(&self)->String;
     fn get_node_type(&self)->NodeType; 
+    fn modify_fields(&mut self,json_str:String)->anyhow::Result<()>;
 }
 
 #[derive(Serialize)]
