@@ -12,7 +12,7 @@ use crate::models::habit::{Habit,upload_habit,delete_habit,get_habits};
 use crate::models::task::{Task, TaskDependency, delete_task, get_task_dependencies, get_tasks, upload_task, upload_task_dependency,delete_task_dependency}; 
 use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals, get_goal};
 use crate::db::connection::{establish_connection};
-use crate::core::graph_components::{Node,DagError,Action,upload_node,delete_node};
+use crate::core::graph_components::{Action, DagError, Node, NodeType, delete_node, save_node, upload_node};
 
 use serde_json::{Value, json};
 
@@ -93,7 +93,7 @@ impl Dag{
         Ok(())
     }
 
-    pub async fn make_edge(&mut self, successor_id:String,predecessor_id:String)-> anyhow::Result<()>{
+    pub async fn add_edge(&mut self, successor_id:String,predecessor_id:String)-> anyhow::Result<()>{
         let sucessor_vec = self.sn.successors.entry(String::from(&predecessor_id)).or_insert(Vec::new());
         let predecessor_vec = self.sn.predecessors.entry(String::from(&successor_id)).or_insert(Vec::new());
         if sucessor_vec.contains(&successor_id) || predecessor_vec.contains(&predecessor_id){
@@ -129,6 +129,17 @@ impl Dag{
         
         Ok(())
     }
+
+    pub async fn add_node_if_not_present(&mut self, mut node: Node) -> anyhow::Result<()> {
+        if node.node_type != NodeType::GOAL {
+            let mut mutable_json_fields = node.item.get_json_fields()?.clone();
+            mutable_json_fields["goal_id"] = json!(self.goal.get_id());
+            node.item.modify_fields(mutable_json_fields.to_string())?;
+        }
+        self.sn.nodes.entry(String::from(node.item.get_uuid())).or_insert(node);
+        Ok(())
+    }
+
     pub async fn delete_node(&mut self,id:&str)->anyhow::Result<()>{
         if !self.sn.nodes.get(id).is_some(){
             Err(DagError::NodeError { message: ("Node doesn't exist".to_string()) })?;
@@ -138,6 +149,7 @@ impl Dag{
         self.delete_all_incoming_and_outgoing_edges(id).await?;   
         Ok(())
     }
+
     pub async fn delete_edge(&mut self,predecessor_id:&str, successor_id:&str)-> anyhow::Result<()>{
         _ = self.sn.successors.get_mut(predecessor_id)
                                 .unwrap()

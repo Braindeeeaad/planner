@@ -21,8 +21,8 @@ CREATE TABLE event_contexts (
 
 
 CREATE TABLE nodes (
-     id TEXT PRIMARY KEY,
-     node_type TEXT NOT NULL,  -- "goal", "task", "habit"
+    id TEXT PRIMARY KEY,
+    node_type TEXT NOT NULL,  -- "goal", "task", "habit"
     x REAL,
     y REAL
 );

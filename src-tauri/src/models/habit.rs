@@ -38,6 +38,12 @@ impl Action for Habit{
         self.streak_count = obj.streak_count;
         Ok(())
     }
+    fn get_json_fields(&self)->anyhow::Result<serde_json::Value>{
+        Ok(serde_json::to_value(self).unwrap())
+    }
+    fn get_goal_id(&self)->Option<String>{
+        self.goal_id.clone()
+    }
 }
 
 impl Habit{
@@ -93,6 +99,20 @@ pub async fn delete_habit(pool:&SqlitePool, habit:Habit)->anyhow::Result<()>{
     Ok(())
 }
 
+pub async fn save_habit(pool: &SqlitePool, habit: &Habit) -> anyhow::Result<()> {
+    let query = "UPDATE habits SET node_id = ?, title = ?, frequency = ?, target_time = ?, streak_count = ?, goal_id = ? WHERE id = ?;";
+    sqlx::query(query)
+        .bind(&habit.node_id)
+        .bind(&habit.title)
+        .bind(&habit.frequency)
+        .bind(&habit.target_time)
+        .bind(&habit.streak_count)
+        .bind(&habit.goal_id)
+        .bind(&habit.id) // Always bind the WHERE clause variable last to match the query order
+        .execute(pool)
+        .await?;
+    Ok(())
+}
 
 pub async fn get_habits(pool: &SqlitePool, group_id:Option<&str>) -> anyhow::Result<Vec<Habit>> {
     let habits =
@@ -102,4 +122,13 @@ pub async fn get_habits(pool: &SqlitePool, group_id:Option<&str>) -> anyhow::Res
             .fetch_all(pool)
             .await?;
     Ok(habits)
+}
+
+pub async fn get_habit(pool: &SqlitePool,node_id:&str) -> anyhow::Result<Habit> {
+    let habit =
+        sqlx::query_as::<_, Habit>(r#"SELECT id,node_id,goal_id,title,frequency,target_time,streak_couns FROM habits WHERE id=$1"#)
+            .bind(node_id)
+            .fetch_one(pool)
+            .await?;
+    Ok(habit)
 }

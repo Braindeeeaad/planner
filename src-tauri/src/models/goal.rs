@@ -34,6 +34,13 @@ impl Action for Goal{
         self.status = obj.status;
         Ok(())
     }
+    fn get_json_fields(&self)->anyhow::Result<serde_json::Value>{
+        Ok(serde_json::to_value(self).unwrap())
+    }
+    fn get_goal_id(&self)->Option<String>{
+        Some(self.id.clone())
+    }
+
 }
 
 impl Goal {
@@ -90,7 +97,18 @@ pub async fn delete_goal(pool:&SqlitePool, goal:Goal)->anyhow::Result<()>{
         .await?;
     Ok(())
 }
-
+pub async fn save_goal(pool:&SqlitePool,goal:&Goal)->anyhow::Result<()>{
+    let query = "UPDATE goals SET node_id = ?, title = ?, target_date = ?, status = ? WHERE id = ?;";
+    sqlx::query(query)
+    .bind(&goal.node_id)
+    .bind(&goal.title)
+    .bind(&goal.target_date)
+    .bind(&goal.status)
+    .bind(&goal.id) // Always bind the WHERE clause variable last to match the query order
+    .execute(pool)
+    .await?;
+    Ok(())
+}
 
 pub async fn get_goals(pool: &SqlitePool) -> anyhow::Result<Vec<Goal>> {
     let goals =
@@ -100,10 +118,10 @@ pub async fn get_goals(pool: &SqlitePool) -> anyhow::Result<Vec<Goal>> {
     Ok(goals)
 }
 
-pub async fn get_goal(pool: &SqlitePool,goal_id:&str) -> anyhow::Result<Goal> {
+pub async fn get_goal(pool: &SqlitePool,node_id:&str) -> anyhow::Result<Goal> {
     let goal =
         sqlx::query_as::<_, Goal>(r#"SELECT id,node_id,title,target_date,status FROM goals WHERE id=$1"#)
-            .bind(goal_id)
+            .bind(node_id)
             .fetch_one(pool)
             .await?;
     Ok(goal)

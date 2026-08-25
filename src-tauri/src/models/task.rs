@@ -58,6 +58,13 @@ impl Action for Task{
         self.status = obj.status;
         Ok(())
     }
+    fn get_json_fields(&self)->anyhow::Result<serde_json::Value>{
+        Ok(serde_json::to_value(self).unwrap())
+    }
+    fn get_goal_id(&self)->Option<String>{
+        self.goal_id.clone()
+    }
+    
 }
 
 
@@ -146,6 +153,27 @@ pub async fn delete_task(pool:&SqlitePool, task:Task)->anyhow::Result<()>{
 }
 
 
+pub async fn save_task(pool: &SqlitePool, task: &Task) -> anyhow::Result<()> {
+    let query = "UPDATE tasks SET node_id = ?, goal_id = ?, event_context_id = ?, title = ?, task_type = ?, base_duration = ?, scheduled_start = ?, scheduled_end = ?, urgency_score = ?, importance_score = ?, priority_weight = ?, status = ? WHERE id = ?;";
+    sqlx::query(query)
+        .bind(&task.node_id)
+        .bind(&task.goal_id)
+        .bind(&task.event_context_id)
+        .bind(&task.title)
+        .bind(&task.task_type)
+        .bind(&task.base_duration)
+        .bind(&task.scheduled_start)
+        .bind(&task.scheduled_end)
+        .bind(&task.urgency_score)
+        .bind(&task.importance_score)
+        .bind(&task.priority_weight)
+        .bind(&task.status)
+        .bind(&task.id) // Always bind the WHERE clause variable last to match the query order
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn get_tasks(
     pool: &SqlitePool,
     goal_id: Option<&str>,
@@ -165,6 +193,21 @@ pub async fn get_tasks(
     Ok(tasks)
 }
 
+pub async fn get_task(pool: &SqlitePool,node_id:&str) -> anyhow::Result<Task> {
+    let habit =
+        sqlx::query_as::<_, Task>(
+            r#"
+            SELECT id,node_id,goal_id,event_context_id,
+                   title,task_type,base_duration,
+                   scheduled_start,scheduled_end,
+                   urgency_score,importance_score,
+                   priority_weight,status  
+            FROM tasks WHERE id=$1"#)
+            .bind(node_id)
+            .fetch_one(pool)
+            .await?;
+    Ok(habit)
+}
 
 
 #[derive(Debug, FromRow)]
