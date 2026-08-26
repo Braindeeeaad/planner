@@ -7,6 +7,11 @@ use core::dag::{Dag,Snapshot};
 use db::connection::{establish_connection};
 use models::goal::{get_goal};
 use serde_json::{Value};
+use core::operation::{Op,apply_op};
+
+
+
+
 
 #[tauri::command]
 async fn get_snapshot(goal_id: String) -> Result<Value, String> {
@@ -18,6 +23,16 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
     })?;
 
     serde_json::to_value(dag.to_snapshot()).map_err(|err| format!("{err:?}"))
+}
+
+
+//Todo make proper returning interface for apply opp
+//Figure out how to keep a map of dags persistent in memory and load it
+#[tauri::command]
+async fn execute_op(op:Op)->Result<()>{
+    
+    //apply_op(dag_map, pool, &op);
+    Ok(())
 }
 
 #[tauri::command]

@@ -53,7 +53,7 @@ pub enum Op {
 }
 
 
-async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op) -> anyhow::Result<()> {
+pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op) -> anyhow::Result<()> {
     match op {
         Op::AddTask {task, x, y } => {
             upload_node(pool, task.clone(), x.clone(), y.clone());
@@ -73,10 +73,13 @@ async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op:
                 None => return Err(DagError::EdgeError { message: ("Predecessor node needs to be connected to graph".to_string()) })?
             };
 
-            let dagr = dag_map.get(&goal_id).unwrap();
-            dagr.add_edge(successor_id.clone(), predecessor_id.clone());
-            dagr.add_node_if_not_present(succ_node);
-            
+
+            if dag_map.get(&goal_id).is_some(){
+                //TODO: add error handling here
+                let dagr = dag_map.get_mut(&goal_id).unwrap();
+                dagr.add_edge(successor_id.clone(), predecessor_id.clone());
+                dagr.add_node_if_not_present(succ_node);
+            }
             
         }
         Op::RemoveNode { id } =>{
@@ -91,10 +94,9 @@ async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op:
             };
 
             
-            if goal_id{
+            if dag_map.get(&goal_id).is_some(){
                 //TODO: add error handling here
-
-                let dagr = *dag_map.get_mut(&goal_id.unwrap()).unwrap();
+                let dagr = dag_map.get_mut(&goal_id).unwrap();
                 dagr.delete_node(id);
             }
             else{
@@ -102,7 +104,9 @@ async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op:
             }
         }
         Op::MoveNode { id, x, y } => {
-            
+            let mut node = get_node(pool, id).await?; 
+            node.set_coords(Some(x.clone()), Some(y.clone()));
+            node.save_coords(pool);
         }
         Op::Batch { ops } => {
             for sub_op in ops {

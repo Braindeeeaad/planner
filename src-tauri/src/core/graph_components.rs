@@ -94,6 +94,20 @@ impl Node{
         self.y = row.get("y");
         Ok(())
     }
+    pub async fn set_coords(&mut self, x:Option<f32>, y:Option<f32>){
+        self.x = x;
+        self.y= y;
+    }
+    pub async fn save_coords(&mut self,pool:&SqlitePool)->anyhow::Result<()>{
+        let query = "UPDATE nodes SET x = ?, y= ? WHERE id= ?";
+        sqlx::query(query)
+            .bind(&self.x)
+            .bind(&self.y)
+            .bind(&self.id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
 
     
 }
@@ -153,7 +167,7 @@ pub async fn delete_node(pool:&SqlitePool, node:Node)->anyhow::Result<()>{
 }
 
 
-pub async fn save_node(pool:&SqlitePool, node:Node)->anyhow::Result<()>{
+pub async fn save_node(pool:&SqlitePool, node:Node, position:(Option<f32>,Option<f32>))->anyhow::Result<()>{
     match node.node_type{
         NodeType::GOAL =>{
             let goal = get_goal(pool, &node.id).await?;
@@ -167,6 +181,9 @@ pub async fn save_node(pool:&SqlitePool, node:Node)->anyhow::Result<()>{
             let task = get_task(pool,&node.id).await?;
             save_task(pool, &task).await?;
         }
-    } 
+    }
+    let (x,y) =position;
+
+
     Ok(())
 }
