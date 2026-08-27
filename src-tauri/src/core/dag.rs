@@ -64,6 +64,20 @@ impl Dag{
         })
 
     }
+    pub async fn create_with_goal(goal:Goal)->anyhow::Result<Self>{
+        let pool = establish_connection().await?;
+        Ok(
+            Self{   
+            pool,
+            goal,
+            sn:
+                Snapshot{
+                    nodes:HashMap::new(), 
+                    successors:HashMap::new(), 
+                    predecessors:HashMap::new() 
+                }
+        })
+    }
     pub async fn download_dag(&mut self)->anyhow::Result<()>{ 
         let tasks = get_tasks(&self.pool, Some(self.goal.get_id())).await?;
         let habits = get_habits(&self.pool, Some(self.goal.get_id())).await?;

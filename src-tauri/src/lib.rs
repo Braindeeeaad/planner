@@ -2,16 +2,19 @@
 pub mod core;
 pub mod models; 
 pub mod db; 
+pub mod state;
 
 use core::dag::{Dag,Snapshot};
+use std::{collections::HashMap, ops::DerefMut};
 use db::connection::{establish_connection};
 use models::goal::{get_goal};
 use serde_json::{Value};
 use core::operation::{Op,apply_op};
 
+use state::state::{AppState,initilize_state};
 
-
-
+use tauri::{Builder, Manager,State};
+use std::sync::Mutex;
 
 #[tauri::command]
 async fn get_snapshot(goal_id: String) -> Result<Value, String> {
@@ -29,9 +32,10 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
 //Todo make proper returning interface for apply opp
 //Figure out how to keep a map of dags persistent in memory and load it
 #[tauri::command]
-async fn execute_op(op:Op)->Result<()>{
-    
-    //apply_op(dag_map, pool, &op);
+async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op)->Result<()>{
+    let mut state = state.lock().unwrap().deref_mut();    
+    let pool = establish_connection().await.map_err(|err|format!("{err:?}") )?;
+    apply_op(&mut state.dag_map, &pool, &op).await?;
     Ok(())
 }
 
@@ -41,9 +45,23 @@ fn greet(name: &str) -> String {
     return_str
 }
 
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app|{
+            let handle = app.handle().clone();
+    
+
+            tauri::async_runtime::block_on(async move {
+                let mut app_state = AppState::default();
+                initilize_state(&mut app_state).await.unwrap();
+                handle.manage(Mutex::new(app_state));
+
+            });
+ 
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet,get_snapshot])
         .run(tauri::generate_context!())
