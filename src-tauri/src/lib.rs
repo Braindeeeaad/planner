@@ -32,11 +32,12 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
 //Todo make proper returning interface for apply opp
 //Figure out how to keep a map of dags persistent in memory and load it
 #[tauri::command]
-async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op)->Result<()>{
-    let mut state = state.lock().unwrap().deref_mut();    
+async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op)->Result<Vec<Op>,String>{
+    let mut_gaurd = state.lock().unwrap();
+    let state = mut_gaurd.deref_mut();    
     let pool = establish_connection().await.map_err(|err|format!("{err:?}") )?;
-    apply_op(&mut state.dag_map, &pool, &op).await?;
-    Ok(())
+    let ops = apply_op(&mut state.dag_map, &pool, &op).await.map_err(|err| format!("{err:?}"));
+    ops
 }
 
 #[tauri::command]

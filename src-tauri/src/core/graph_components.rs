@@ -51,8 +51,8 @@ pub trait Action: Send + Sync{
 pub struct Node{
     id:String,
     pub node_type: NodeType, 
-    x:Option<f32>, 
-    y:Option<f32>,
+    pub x:Option<f32>, 
+    pub y:Option<f32>,
 
     pub item: Box<dyn Action>
 } 

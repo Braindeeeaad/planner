@@ -8,7 +8,7 @@ use crate::models::task::{Task};
 use crate::models::goal::{Goal};
 
 use crate::core::dag::{Dag};
-use crate::core::graph_components::{DagError, Node, delete_node, get_node, upload_node};
+use crate::core::graph_components::{Action, DagError, Node, NodeType, delete_node, get_node, upload_node};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Op {
@@ -53,16 +53,23 @@ pub enum Op {
 }
 
 
-pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op) -> anyhow::Result<()> {
+pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op) -> anyhow::Result<Vec<Op>> {
+    let mut inverse_ops:Vec<Op> = Vec::new();
     match op {
         Op::AddTask {task, x, y } => {
             upload_node(pool, task.clone(), x.clone(), y.clone());
+            //calculation inverse operation
+            inverse_ops.push(Op::RemoveNode { id: (String::from(task.get_uuid()))});
         }
         Op::AddHabit {habit, x, y } => {
             upload_node(pool, habit.clone(), x.clone(), y.clone());
+            //calculation inverse operation
+            inverse_ops.push(Op::RemoveNode { id: (String::from(habit.get_uuid()))});
         }
         Op::AddGoal {goal, x, y } => {
             upload_node(pool, goal.clone(), x.clone(), y.clone());
+            //calculation inverse operation
+            inverse_ops.push(Op::RemoveNode { id: (String::from(goal.get_uuid()))});
         }
         Op::AddEdge { predecessor_id, successor_id } => {
             let succ_node = get_node(pool, successor_id).await?;
@@ -80,7 +87,11 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
                 dagr.add_edge(successor_id.clone(), predecessor_id.clone());
                 dagr.add_node_if_not_present(succ_node);
             }
-            
+
+            //calculating inverse operation
+
+            inverse_ops.push(Op::RemoveEdge { predecessor_id: (predecessor_id.to_string()), successor_id: (successor_id.to_string()) });
+
         }
         Op::RemoveNode { id } =>{
             let node = get_node(pool,id).await?;
@@ -94,6 +105,26 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
             };
 
             
+            //calculating inverse operation
+            match node.node_type{
+                NodeType::GOAL => {
+                    let goal:Goal = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
+                    inverse_ops.push(Op::AddGoal { goal, x: (node.x), y: (node.y)})
+                },
+                NodeType::TASK => {
+                    let task:Task = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
+                    inverse_ops.push(Op::AddTask { task, x: (node.x), y: (node.y)})
+                },
+                NodeType::HABIT => {
+                    let habit:Habit = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
+                    inverse_ops.push(Op::AddHabit { habit, x: (node.x), y: (node.y)})
+                },
+            }
+
+
+
+
+            //deleting node from dag or from db
             if dag_map.get(&goal_id).is_some(){
                 //TODO: add error handling here
                 let dagr = dag_map.get_mut(&goal_id).unwrap();
@@ -102,21 +133,26 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
             else{
                 delete_node(pool, node);
             }
+
+            
+            
         }
         Op::MoveNode { id, x, y } => {
             let mut node = get_node(pool, id).await?; 
             node.set_coords(Some(x.clone()), Some(y.clone()));
             node.save_coords(pool);
+            inverse_ops.push(Op::MoveNode { id: (id.to_string()), x: (-x), y: (-y) });
         }
         Op::Batch { ops } => {
             for sub_op in ops {
-                Box::pin(apply_op(dag_map, pool,op)).await?; // recursion needs boxing (async fn)
+                let op = Box::pin(apply_op(dag_map, pool,op)).await?; // recursion needs boxing (async fn)
+                inverse_ops.extend(op);
             }
         }
         // RemoveNode, RemoveEdge, RenameNode similarly...
         _ => todo!(),
     }
-    Ok(())
+    Ok(inverse_ops)
 }
 
 
