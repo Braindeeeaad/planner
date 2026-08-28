@@ -1,4 +1,5 @@
-use std::sync::Mutex;
+use tokio::sync::Mutex;
+
 use std::collections::HashMap;
 use sqlx::{SqlitePool};
 

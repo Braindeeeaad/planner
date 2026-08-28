@@ -14,7 +14,7 @@ use core::operation::{Op,apply_op};
 use state::state::{AppState,initilize_state};
 
 use tauri::{Builder, Manager,State};
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 #[tauri::command]
 async fn get_snapshot(goal_id: String) -> Result<Value, String> {
@@ -33,7 +33,7 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
 //Figure out how to keep a map of dags persistent in memory and load it
 #[tauri::command]
 async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op)->Result<Vec<Op>,String>{
-    let mut_gaurd = state.lock().unwrap();
+    let mut mut_gaurd = state.lock().await;
     let state = mut_gaurd.deref_mut();    
     let pool = establish_connection().await.map_err(|err|format!("{err:?}") )?;
     let ops = apply_op(&mut state.dag_map, &pool, &op).await.map_err(|err| format!("{err:?}"));
@@ -64,7 +64,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet,get_snapshot])
+        .invoke_handler(tauri::generate_handler![greet,get_snapshot,execute_op])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
