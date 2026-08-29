@@ -8,7 +8,7 @@ use crate::models::task::{Task};
 use crate::models::goal::{Goal};
 
 use crate::core::dag::{Dag};
-use crate::core::graph_components::{Action, DagError, Node, NodeType, delete_node, get_node, upload_node};
+use crate::models::node::{Action, DagError, Node, NodeType, delete_node, get_node, upload_node};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Op {
@@ -139,14 +139,14 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
         }
         Op::MoveNode { id, x, y } => {
             let mut node = get_node(pool, id).await?; 
-            node.set_coords(Some(x.clone()), Some(y.clone()));
-            node.save_coords(pool);
+            node.set_coords(Some(x.clone()), Some(y.clone())).await;
+            node.save_coords(pool).await?;
             inverse_ops.push(Op::MoveNode { id: (id.to_string()), x: (-x), y: (-y) });
         }
         Op::Batch { ops } => {
             for sub_op in ops {
-                let op = Box::pin(apply_op(dag_map, pool,op)).await?; // recursion needs boxing (async fn)
-                inverse_ops.extend(op);
+                let inv_op = Box::pin(apply_op(dag_map, pool,sub_op)).await?; // recursion needs boxing (async fn)
+                inverse_ops.extend(inv_op);
             }
         }
         // RemoveNode, RemoveEdge, RenameNode similarly...

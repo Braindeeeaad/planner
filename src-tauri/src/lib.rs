@@ -9,7 +9,7 @@ use std::{collections::HashMap, ops::DerefMut};
 use db::connection::{establish_connection};
 use models::goal::{get_goal};
 use serde_json::{Value};
-use core::operation::{Op,apply_op};
+use models::operation::{Op,apply_op};
 
 use state::state::{AppState,initilize_state};
 

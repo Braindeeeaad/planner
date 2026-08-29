@@ -5,7 +5,8 @@ use serde::{Serialize,Deserialize};
 use std::ffi::NulError;
 use std::marker::PhantomData;
 use uuid::Uuid;
-use crate::core::graph_components::{Action,NodeType};
+
+use crate::models::node::{Action,NodeType};
 use std::any::TypeId;
 use serde_json::json;
 

@@ -6,7 +6,7 @@ use sqlx::{FromRow};
 use uuid::Uuid;
 use serde_json::json;
 
-use crate::core::graph_components::{Action,NodeType};
+use crate::models::node::{Action,NodeType};
 #[derive(FromRow,Serialize,Deserialize,Debug,Clone)]
 pub struct Goal {
     id: String,

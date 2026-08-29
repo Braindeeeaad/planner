@@ -12,7 +12,7 @@ use crate::models::habit::{Habit,upload_habit,delete_habit,get_habits};
 use crate::models::task::{Task, TaskDependency, delete_task, get_task_dependencies, get_tasks, upload_task, upload_task_dependency,delete_task_dependency}; 
 use crate::models::goal::{Goal,upload_goal,delete_goal,get_goals, get_goal};
 use crate::db::connection::{establish_connection};
-use crate::core::graph_components::{Action, DagError, Node, NodeType, delete_node, save_node, upload_node};
+use crate::models::node::{Action, DagError, Node, NodeType, delete_node, save_node, upload_node};
 
 use serde_json::{Value, json};
 

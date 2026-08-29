@@ -4,7 +4,7 @@ use serde::{Serialize,Deserialize};
 use sqlx::{SqlitePool};
 use serde_json::json;
 
-use crate::core::graph_components::{Action,NodeType};
+use crate::models::node::{Action,NodeType};
 
 
 

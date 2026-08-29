@@ -49,3 +49,14 @@ export interface Snapshot {
   successors: Record<string, string[]>;
   predecessors: Record<string, string[]>;
 }
+
+export type Op = 
+  | {type: "add_task", task:Task, x: number | null, y:number | null}
+  | {type: "add_habit", habit:Habit, x: number | null, y:number | null}
+  | {type: "add_goal", goal:Goal, x: number | null, y:number | null}
+  | {type: "remove_node", id:String}
+  | {type: "add_edge", predecessor_id:String, successor_id:String }
+  | {type: "remove_edge", predecessor_id:String, successor_id:String }
+  | {type: "move_node", x:number, y:number}
+  | {type: "modify_node", id:number, json_str:String}
+  | {type: "batch", ops:Array<Op>}
