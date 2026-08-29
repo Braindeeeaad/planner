@@ -40,11 +40,12 @@ pub enum NodeType{
 #[typetag::serde(tag="type")]
 pub trait Action: Send + Sync{
     fn get_uuid(&self)->&str;
+    fn get_goal_id(&self)->Option<String>;
     fn get_json_str(&self)->String;
     fn get_node_type(&self)->NodeType; 
     fn modify_fields(&mut self,json_str:String)->anyhow::Result<()>;
     fn get_json_fields(&self)->anyhow::Result<serde_json::Value>;
-    fn get_goal_id(&self)->Option<String>;
+    
 }
 
 #[derive(Serialize)]

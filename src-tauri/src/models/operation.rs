@@ -3,9 +3,9 @@ use sqlx::{Sqlite, Transaction};
 use std::collections::{HashMap};
 
 
-use crate::models::habit::{Habit}; 
-use crate::models::task::{Task}; 
-use crate::models::goal::{Goal};
+use crate::models::habit::{Habit, save_habit}; 
+use crate::models::task::{Task, save_task}; 
+use crate::models::goal::{Goal, save_goal};
 
 use crate::core::dag::{Dag};
 use crate::models::node::{Action, DagError, Node, NodeType, delete_node, get_node, upload_node};
@@ -142,6 +142,29 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
             node.set_coords(Some(x.clone()), Some(y.clone())).await;
             node.save_coords(pool).await?;
             inverse_ops.push(Op::MoveNode { id: (id.to_string()), x: (-x), y: (-y) });
+        }
+        Op::ModifyNode {id,json_str} =>{
+            let mut node = get_node(pool, id).await?;
+            let old_fields = node.item.get_json_str();
+            node.item.modify_fields(String::from(json_str))?;
+            
+            match node.node_type{
+                NodeType::GOAL => {
+                    let new_goal:Goal = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
+                    save_goal(pool, &new_goal).await?;
+                    inverse_ops.push(Op::ModifyNode { id: (node.item.get_uuid().to_string()), json_str: (old_fields) });
+                },
+                NodeType::TASK => {
+                    let new_task:Task = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
+                    save_task(pool, &new_task).await?;
+                    inverse_ops.push(Op::ModifyNode { id: (node.item.get_uuid().to_string()), json_str: (old_fields) });
+                },
+                NodeType::HABIT => {
+                    let new_habit:Habit = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
+                    save_habit(pool, &new_habit).await?;
+                    inverse_ops.push(Op::ModifyNode { id: (node.item.get_uuid().to_string()), json_str: (old_fields) });
+                },
+            }
         }
         Op::Batch { ops } => {
             for sub_op in ops {
