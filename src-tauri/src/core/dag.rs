@@ -194,6 +194,9 @@ impl Dag{
         Ok(node)
     }
 
+    pub fn get_goal(&self)->&Goal{
+        &self.goal
+    }
     pub async fn delete_edge(&mut self,predecessor_id:&str, successor_id:&str)-> anyhow::Result<()>{
         _ = self.sn.successors.get_mut(predecessor_id)
                                 .unwrap()

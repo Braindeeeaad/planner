@@ -34,7 +34,7 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
 //Todo make proper returning interface for apply opp
 //Figure out how to keep a map of dags persistent in memory and load it
 #[tauri::command]
-async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op,base_version:i64,goal_id: Option<String>)->Result<(Vec<Op>,i64),String>{
+async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op,base_version:i64,goal_id: Option<String>)->Result<(Vec<Op>,i64,Value),String>{
     let mut mut_gaurd = state.lock().await;
     let state = mut_gaurd.deref_mut();    
     let pool = establish_connection().await.map_err(|err|format!("{err:?}") )?;

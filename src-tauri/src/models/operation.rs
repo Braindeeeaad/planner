@@ -75,65 +75,75 @@ pub fn get_valid_dag<'a>(
 
 
 
-pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op, base_version:&i64, goal_id:&Option<String>) -> anyhow::Result<(Vec<Op>,i64)> {
+pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op, base_version:&i64, goal_id:&Option<String>) -> anyhow::Result<(Vec<Op>,i64,serde_json::Value)> {
     let mut inverse_ops:Vec<Op> = Vec::new();
-    let mut  next_version = base_version.clone();
-
+    let mut next_version = base_version.clone();
+   
 
     if let Op::AddGoal { goal, x, y } = op {
         upload_node(pool, goal.clone(), x.clone(), y.clone()).await?;
         inverse_ops.push(Op::RemoveNode { id: goal.get_uuid().to_string() });
-        let dag = Dag::create_with_goal(goal.clone()).await?;
-        dag_map.insert(goal.get_id().to_string(),dag);
+        let dag: Dag = Dag::create_with_goal(goal.clone()).await?;
         next_version+=1;
-        return Ok((inverse_ops,next_version));
+        let result = (inverse_ops,next_version,dag.to_snapshot());
+        dag_map.insert(goal.get_id().to_string(),dag);
+        return Ok(result);
     }
 
+    if let Op::Batch { ops } = op{
+        for sub_op in ops {
+            next_version+=1;
+            let (inv_op,_,_) = Box::pin(apply_op(dag_map, pool,sub_op,&next_version,goal_id)).await?; // recursion needs boxing (async fn)
+            inverse_ops.extend(inv_op);
+        }
+        let dag =  get_valid_dag(dag_map, goal_id, base_version)?;
+        return Ok((inverse_ops,next_version,dag.to_snapshot()));
 
+    }
     
-    
+    let mut snapshot:serde_json::Value = serde_json::from_str("")?;
     //let root_goal = get_goal(pool, goal_id).await?;
-    let dag = get_valid_dag(dag_map, goal_id, base_version)?;
+    //let dag = get_valid_dag(dag_map, goal_id, base_version)?;
 
     match op {
         Op::AddTask {task, x, y } => {
             //upload_node(pool, task.clone(), x.clone(), y.clone()).await?;
             //calculation inverse operation
+            let dag = get_valid_dag(dag_map, goal_id, base_version)?;
             dag.add_task(task.clone(),x.clone(),y.clone()).await?;
             inverse_ops.push(Op::RemoveNode { id: (String::from(task.get_uuid()))});
+            snapshot = dag.to_snapshot();
             next_version+=1;
         }
         Op::AddHabit {habit, x, y } => {
             //upload_node(pool, habit.clone(), x.clone(), y.clone()).await?;
             //calculation inverse operation
+            let dag = get_valid_dag(dag_map, goal_id, base_version)?;
             dag.add_habit(habit.clone(),x.clone(),y.clone()).await?;
             next_version+=1;
             inverse_ops.push(Op::RemoveNode { id: (String::from(habit.get_uuid()))});
         }
         Op::AddGoal {goal, x, y } => !unreachable!(),
         Op::AddEdge { predecessor_id, successor_id } => {
-            let succ_node = get_node(pool, successor_id).await?;
-            let pred_node = get_node(pool, predecessor_id).await?;
-            
-            let goal_id = match pred_node.item.get_goal_id(){
+            let dag = get_valid_dag(dag_map, goal_id, base_version)?;
+            let succ_node = dag.get_node(successor_id)?;
+            let pred_node = dag.get_node(predecessor_id)?;
+            match pred_node.item.get_goal_id(){
                 Some(goal_id)=>goal_id, 
                 None => return Err(DagError::EdgeError { message: ("Predecessor node needs to be connected to graph".to_string()) })?
             };
 
-
-            if dag_map.get(&goal_id).is_some(){
-                //TODO: add error handling here
-                let dagr = dag_map.get_mut(&goal_id).unwrap();
-                dagr.add_edge(successor_id.clone(), predecessor_id.clone()).await?;
-                dagr.add_node_if_not_present(succ_node).await?;
-            }
+            
+            dag.add_edge(successor_id.clone(), predecessor_id.clone()).await?;
 
             //calculating inverse operation
+            snapshot = dag.to_snapshot();
             next_version+=1;
             inverse_ops.push(Op::RemoveEdge { predecessor_id: (predecessor_id.to_string()), successor_id: (successor_id.to_string()) });
 
         }
         Op::RemoveNode { id } =>{
+            let dag = get_valid_dag(dag_map, goal_id, base_version)?;
             let node = get_node(pool,id).await?;
             let goal_id = match node.item.get_goal_id() {
                 Some(goal_id) => goal_id,          // now goal_id: String
@@ -162,35 +172,30 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
             }
 
 
-
-
-            //deleting node from dag or from db
-            if dag_map.get(&goal_id).is_some(){
-                //TODO: add error handling here
-                let dagr = dag_map.get_mut(&goal_id).unwrap();
-                dagr.delete_node(id).await?;
-                if dagr.goal.get_id() == goal_id{
-                    
-                }
-            }
-            else{
-                delete_node(pool, node).await?;
-            }
+            dag.delete_node(id).await?;
+            snapshot = dag.to_snapshot();
             next_version+=1;
+            if dag.get_goal().get_id() == goal_id{
+                dag_map.remove(id);
+            }
+            
             
             
         }
         Op::MoveNode { id, x, y } => {
+            let dag = get_valid_dag(dag_map, goal_id, base_version)?;
             let mut node = dag.get_node(id)?; 
 
             let prev_x = node.x.unwrap_or(x.clone());
             let prev_y = node.y.unwrap_or(x.clone());
             
             dag.modify_node(id, None, Some(x.clone()), Some(y.clone())).await?;
+            snapshot = dag.to_snapshot();
             next_version+=1;
             inverse_ops.push(Op::MoveNode { id: (id.to_string()), x: (prev_x), y: (prev_y) });
         }
         Op::ModifyNode {id,json_str} =>{
+            let dag = get_valid_dag(dag_map, goal_id, base_version)?;
             let prev_json_str = dag.get_node(id)?.item.get_json_str();
             dag.modify_node(id, Some(json_str.to_string()), None, None).await?;
             next_version+=1;
@@ -199,14 +204,17 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
         Op::Batch { ops } => {
             for sub_op in ops {
                 next_version+=1;
-                let (inv_op,_) = Box::pin(apply_op(dag_map, pool,sub_op,&next_version,goal_id)).await?; // recursion needs boxing (async fn)
+                let (inv_op,_,_) = Box::pin(apply_op(dag_map, pool,sub_op,&next_version,goal_id)).await?; // recursion needs boxing (async fn)
                 inverse_ops.extend(inv_op);
             }
-        }
+            let dag =  get_valid_dag(dag_map, goal_id, base_version)?;
+            return Ok((inverse_ops,next_version,dag.to_snapshot()));
+
+    }
         // RemoveNode, RemoveEdge, RenameNode similarly...
         _ => todo!(),
     }
-    Ok((inverse_ops,next_version))
+    Ok((inverse_ops,next_version,snapshot))
 }
 
 
