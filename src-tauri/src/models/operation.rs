@@ -5,7 +5,7 @@ use std::collections::{HashMap};
 
 use crate::models::habit::{Habit, save_habit}; 
 use crate::models::task::{Task, save_task}; 
-use crate::models::goal::{Goal, save_goal};
+use crate::models::goal::{Goal, get_goal, save_goal};
 
 use crate::core::dag::{Dag};
 use crate::models::node::{Action, DagError, Node, NodeType, delete_node, get_node, upload_node};
@@ -53,24 +53,64 @@ pub enum Op {
 }
 
 
-pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op) -> anyhow::Result<Vec<Op>> {
+pub fn get_valid_dag<'a>(
+    dag_map: &'a mut HashMap<String, Dag>,
+    goal_id: &Option<String>,
+    base_version: &i64,
+) -> anyhow::Result<&'a mut Dag> {
+    let gid = goal_id.as_ref().ok_or_else(|| {
+        DagError::GraphError { message: "goal_id is required".to_string() }
+    })?;
+
+    let dag = dag_map.get_mut(gid).ok_or_else(|| {
+        DagError::NodeError { message: "goal graph doesn't exist in memory".to_string() }
+    })?;
+
+    if dag.fetch_goal().get_version_num() != base_version {
+        return Err(DagError::GraphError { message: "base versions do not match, try again".to_string() })?;
+    }
+
+    Ok(dag)
+}
+
+
+
+pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool, op: &Op, base_version:&i64, goal_id:&Option<String>) -> anyhow::Result<(Vec<Op>,i64)> {
     let mut inverse_ops:Vec<Op> = Vec::new();
+    let mut  next_version = base_version.clone();
+
+
+    if let Op::AddGoal { goal, x, y } = op {
+        upload_node(pool, goal.clone(), x.clone(), y.clone()).await?;
+        inverse_ops.push(Op::RemoveNode { id: goal.get_uuid().to_string() });
+        let dag = Dag::create_with_goal(goal.clone()).await?;
+        dag_map.insert(goal.get_id().to_string(),dag);
+        next_version+=1;
+        return Ok((inverse_ops,next_version));
+    }
+
+
+    
+    
+    //let root_goal = get_goal(pool, goal_id).await?;
+    let dag = get_valid_dag(dag_map, goal_id, base_version)?;
+
     match op {
         Op::AddTask {task, x, y } => {
-            upload_node(pool, task.clone(), x.clone(), y.clone());
+            //upload_node(pool, task.clone(), x.clone(), y.clone()).await?;
             //calculation inverse operation
+            dag.add_task(task.clone(),x.clone(),y.clone()).await?;
             inverse_ops.push(Op::RemoveNode { id: (String::from(task.get_uuid()))});
+            next_version+=1;
         }
         Op::AddHabit {habit, x, y } => {
-            upload_node(pool, habit.clone(), x.clone(), y.clone());
+            //upload_node(pool, habit.clone(), x.clone(), y.clone()).await?;
             //calculation inverse operation
+            dag.add_habit(habit.clone(),x.clone(),y.clone()).await?;
+            next_version+=1;
             inverse_ops.push(Op::RemoveNode { id: (String::from(habit.get_uuid()))});
         }
-        Op::AddGoal {goal, x, y } => {
-            upload_node(pool, goal.clone(), x.clone(), y.clone());
-            //calculation inverse operation
-            inverse_ops.push(Op::RemoveNode { id: (String::from(goal.get_uuid()))});
-        }
+        Op::AddGoal {goal, x, y } => !unreachable!(),
         Op::AddEdge { predecessor_id, successor_id } => {
             let succ_node = get_node(pool, successor_id).await?;
             let pred_node = get_node(pool, predecessor_id).await?;
@@ -84,12 +124,12 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
             if dag_map.get(&goal_id).is_some(){
                 //TODO: add error handling here
                 let dagr = dag_map.get_mut(&goal_id).unwrap();
-                dagr.add_edge(successor_id.clone(), predecessor_id.clone());
-                dagr.add_node_if_not_present(succ_node);
+                dagr.add_edge(successor_id.clone(), predecessor_id.clone()).await?;
+                dagr.add_node_if_not_present(succ_node).await?;
             }
 
             //calculating inverse operation
-
+            next_version+=1;
             inverse_ops.push(Op::RemoveEdge { predecessor_id: (predecessor_id.to_string()), successor_id: (successor_id.to_string()) });
 
         }
@@ -128,54 +168,45 @@ pub async fn apply_op(dag_map: &mut HashMap<String, Dag>,pool:&sqlx::SqlitePool,
             if dag_map.get(&goal_id).is_some(){
                 //TODO: add error handling here
                 let dagr = dag_map.get_mut(&goal_id).unwrap();
-                dagr.delete_node(id);
+                dagr.delete_node(id).await?;
+                if dagr.goal.get_id() == goal_id{
+                    
+                }
             }
             else{
-                delete_node(pool, node);
+                delete_node(pool, node).await?;
             }
-
+            next_version+=1;
             
             
         }
         Op::MoveNode { id, x, y } => {
-            let mut node = get_node(pool, id).await?; 
-            node.set_coords(Some(x.clone()), Some(y.clone())).await;
-            node.save_coords(pool).await?;
-            inverse_ops.push(Op::MoveNode { id: (id.to_string()), x: (-x), y: (-y) });
+            let mut node = dag.get_node(id)?; 
+
+            let prev_x = node.x.unwrap_or(x.clone());
+            let prev_y = node.y.unwrap_or(x.clone());
+            
+            dag.modify_node(id, None, Some(x.clone()), Some(y.clone())).await?;
+            next_version+=1;
+            inverse_ops.push(Op::MoveNode { id: (id.to_string()), x: (prev_x), y: (prev_y) });
         }
         Op::ModifyNode {id,json_str} =>{
-            let mut node = get_node(pool, id).await?;
-            let old_fields = node.item.get_json_str();
-            node.item.modify_fields(String::from(json_str))?;
-            
-            match node.node_type{
-                NodeType::GOAL => {
-                    let new_goal:Goal = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
-                    save_goal(pool, &new_goal).await?;
-                    inverse_ops.push(Op::ModifyNode { id: (node.item.get_uuid().to_string()), json_str: (old_fields) });
-                },
-                NodeType::TASK => {
-                    let new_task:Task = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
-                    save_task(pool, &new_task).await?;
-                    inverse_ops.push(Op::ModifyNode { id: (node.item.get_uuid().to_string()), json_str: (old_fields) });
-                },
-                NodeType::HABIT => {
-                    let new_habit:Habit = serde_json::from_value(node.item.get_json_fields().unwrap()).unwrap();
-                    save_habit(pool, &new_habit).await?;
-                    inverse_ops.push(Op::ModifyNode { id: (node.item.get_uuid().to_string()), json_str: (old_fields) });
-                },
-            }
+            let prev_json_str = dag.get_node(id)?.item.get_json_str();
+            dag.modify_node(id, Some(json_str.to_string()), None, None).await?;
+            next_version+=1;
+            inverse_ops.push(Op::ModifyNode { id: (String::from(id)), json_str: (prev_json_str) });
         }
         Op::Batch { ops } => {
             for sub_op in ops {
-                let inv_op = Box::pin(apply_op(dag_map, pool,sub_op)).await?; // recursion needs boxing (async fn)
+                next_version+=1;
+                let (inv_op,_) = Box::pin(apply_op(dag_map, pool,sub_op,&next_version,goal_id)).await?; // recursion needs boxing (async fn)
                 inverse_ops.extend(inv_op);
             }
         }
         // RemoveNode, RemoveEdge, RenameNode similarly...
         _ => todo!(),
     }
-    Ok(inverse_ops)
+    Ok((inverse_ops,next_version))
 }
 
 

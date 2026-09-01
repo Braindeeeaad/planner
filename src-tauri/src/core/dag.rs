@@ -78,6 +78,9 @@ impl Dag{
                 }
         })
     }
+    pub fn fetch_goal(&self)->&Goal{
+        &self.goal
+    }
     pub async fn download_dag(&mut self)->anyhow::Result<()>{ 
         let tasks = get_tasks(&self.pool, Some(self.goal.get_id())).await?;
         let habits = get_habits(&self.pool, Some(self.goal.get_id())).await?;
@@ -154,6 +157,25 @@ impl Dag{
         Ok(())
     }
 
+    pub async fn modify_node(&mut self, id:&str,mut json_str:Option<String>, mut x:Option<f32>, mut y:Option<f32>)-> anyhow::Result<()>{
+        let node =  match self.sn.nodes.get_mut(id){
+            None =>{return Err(DagError::NodeError { message: "node doesn't exist".to_string() })?;},
+            Some(node) => node
+        };
+
+        let use_json_str:String = match json_str{
+            None => node.item.get_json_str(),
+            Some(ele)=> ele
+        };
+        if x.is_some() && y.is_some(){
+            x = node.x.clone(); 
+            y = node.y.clone();
+        }
+        node.item.modify_fields(use_json_str)?;
+        save_node(&self.pool, node, (x,y)).await?;
+        Ok(())
+    }
+
     pub async fn delete_node(&mut self,id:&str)->anyhow::Result<()>{
         if !self.sn.nodes.get(id).is_some(){
             Err(DagError::NodeError { message: ("Node doesn't exist".to_string()) })?;
@@ -162,6 +184,14 @@ impl Dag{
         delete_node(&self.pool, self.sn.nodes.remove(id).unwrap()).await?;
         self.delete_all_incoming_and_outgoing_edges(id).await?;   
         Ok(())
+    }
+
+    pub fn get_node(&self, id:&str)->anyhow::Result<&Node>{
+        let node= match self.sn.nodes.get(id){
+            None => {return Err(DagError::NodeError { message: "node doesn't exist".to_string() })?;},
+            Some(node) => node,
+        }; 
+        Ok(node)
     }
 
     pub async fn delete_edge(&mut self,predecessor_id:&str, successor_id:&str)-> anyhow::Result<()>{

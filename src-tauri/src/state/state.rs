@@ -24,4 +24,3 @@ pub async fn initilize_state(state:&mut AppState)->anyhow::Result<()>{
     }
     Ok(())
 }
-

@@ -4,6 +4,7 @@ export interface Goal {
   title: string;
   targetDate: string;
   status: string;
+  version: number
 }
 
 export interface Habit {
@@ -55,8 +56,8 @@ export type Op =
   | {type: "add_habit", habit:Habit, x: number | null, y:number | null}
   | {type: "add_goal", goal:Goal, x: number | null, y:number | null}
   | {type: "remove_node", id:String}
-  | {type: "add_edge", predecessor_id:String, successor_id:String }
-  | {type: "remove_edge", predecessor_id:String, successor_id:String }
+  | {type: "add_edge", predecessor_id:string, successor_id:string }
+  | {type: "remove_edge", predecessor_id:string, successor_id:string }
   | {type: "move_node", x:number, y:number}
-  | {type: "modify_node", id:number, json_str:String}
+  | {type: "modify_node", id:number, json_str:string}
   | {type: "batch", ops:Array<Op>}

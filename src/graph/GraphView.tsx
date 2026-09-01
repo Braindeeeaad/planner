@@ -44,8 +44,10 @@ export const GraphView: React.FC<GraphViewProps> = ({
   const [, setViewIsFit] = useState<boolean>(false);
 
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
+    (changes: NodeChange[]) =>{
+      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot));
+      
+    },  
     [setNodes]
   );
 

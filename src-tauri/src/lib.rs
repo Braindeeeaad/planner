@@ -9,12 +9,14 @@ use std::{collections::HashMap, ops::DerefMut};
 use db::connection::{establish_connection};
 use models::goal::{get_goal};
 use serde_json::{Value};
-use models::operation::{Op,apply_op};
+use models::operation::{Op,apply_op,get_valid_dag};
 
 use state::state::{AppState,initilize_state};
 
 use tauri::{Builder, Manager,State};
 use tokio::sync::Mutex;
+
+use crate::models::goal;
 
 #[tauri::command]
 async fn get_snapshot(goal_id: String) -> Result<Value, String> {
@@ -32,12 +34,13 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
 //Todo make proper returning interface for apply opp
 //Figure out how to keep a map of dags persistent in memory and load it
 #[tauri::command]
-async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op)->Result<Vec<Op>,String>{
+async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op,base_version:i64,goal_id: Option<String>)->Result<(Vec<Op>,i64),String>{
     let mut mut_gaurd = state.lock().await;
     let state = mut_gaurd.deref_mut();    
     let pool = establish_connection().await.map_err(|err|format!("{err:?}") )?;
-    let ops = apply_op(&mut state.dag_map, &pool, &op).await.map_err(|err| format!("{err:?}"));
+    let ops = apply_op(&mut state.dag_map, &pool, &op, &base_version, &goal_id).await.map_err(|err| format!("{err:?}"));
     ops
+
 }
 
 #[tauri::command]

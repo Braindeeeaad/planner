@@ -27,6 +27,9 @@ pub enum DagError{
 
     #[error("Error Parsing Node Type")]
     ParseNodeTypeError,
+
+    #[error("Graph Error: {message}")]
+    GraphError{message:String},
 }
 
 #[derive(Serialize,Deserialize,PartialEq)]
@@ -168,7 +171,7 @@ pub async fn delete_node(pool:&SqlitePool, node:Node)->anyhow::Result<()>{
 }
 
 
-pub async fn save_node(pool:&SqlitePool, node:Node, position:(Option<f32>,Option<f32>))->anyhow::Result<()>{
+pub async fn save_node(pool:&SqlitePool, node:&mut Node, position:(Option<f32>,Option<f32>))->anyhow::Result<()>{
     match node.node_type{
         NodeType::GOAL =>{
             let goal = get_goal(pool, &node.id).await?;
@@ -183,7 +186,7 @@ pub async fn save_node(pool:&SqlitePool, node:Node, position:(Option<f32>,Option
             save_task(pool, &task).await?;
         }
     }
-    let (x,y) =position;
+    //let (x,y) =position;
 
 
     Ok(())
