@@ -51,6 +51,12 @@ export interface Snapshot {
   predecessors: Record<string, string[]>;
 }
 
+export type SnapshotVersion= {
+  snapshot:Snapshot;
+  version:number
+}
+
+
 export type Op = 
   | {type: "add_task", task:Task, x: number | null, y:number | null}
   | {type: "add_habit", habit:Habit, x: number | null, y:number | null}

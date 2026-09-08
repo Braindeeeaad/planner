@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 
 export function useProposeOp() {
   const proposeOp = useCallback(async (op: Op, baseVersion: number) => {
-    const result = await invoke<Array<Op>>('propose_op', { op, baseVersion });
+    const result = await invoke<{inverseOp:Array<Op>,version:number,snapshot:Snapshot}>('propose_op', { op, baseVersion });
     return result; // { snapshot, appliedOp, inverseOp }
   }, []);
 

@@ -19,7 +19,7 @@ use tokio::sync::Mutex;
 use crate::models::goal;
 
 #[tauri::command]
-async fn get_snapshot(goal_id: String) -> Result<Value, String> {
+async fn get_snapshot(goal_id: String) -> Result<(Value,i64),String> {
     let mut dag = Dag::new(&goal_id).await.map_err(|err| format!("{err:?}"))?;
 
     dag.download_dag().await.map_err(|err| {
@@ -27,12 +27,13 @@ async fn get_snapshot(goal_id: String) -> Result<Value, String> {
         format!("{err:?}")
     })?;
 
-    serde_json::to_value(dag.to_snapshot()).map_err(|err| format!("{err:?}"))
+    let result = serde_json::to_value(dag.to_snapshot()).map_err(|err| format!("{err:?}"))?;
+    Ok((result,dag.get_version_num().clone()))
 }
 
 
 //Todo make proper returning interface for apply opp
-//Figure out how to keep a map of dags persistent in memory and load it
+//Figure outhow to keep a map of dags persistent in memory and load it
 #[tauri::command]
 async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op,base_version:i64,goal_id: Option<String>)->Result<(Vec<Op>,i64,Value),String>{
     let mut mut_gaurd = state.lock().await;
@@ -42,6 +43,8 @@ async fn execute_op(state:State<'_,Mutex<AppState>>,op:Op,base_version:i64,goal_
     ops
 
 }
+
+
 
 #[tauri::command]
 fn greet(name: &str) -> String {

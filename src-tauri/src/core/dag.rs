@@ -268,5 +268,8 @@ impl Dag{
     pub fn to_snapshot(&self)->Value{
         serde_json::to_value(&self.sn).unwrap()
     }
+    pub fn get_version_num(&self)->&i64{
+        self.goal.get_version_num()
+    }
 
 }
