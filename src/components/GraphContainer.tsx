@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import type { Node, Edge } from "@xyflow/react";
 import { fetchSnapshot } from "../api/fetchSnapshot";
-import type { Snapshot } from "../types";
+import type { Snapshot, SnapshotVersion } from "../types";
 import { GraphView } from "../graph/GraphView";
+import { graphStore } from "../state/GraphStore";
+import { useStore } from "zustand";
 
 const initialNodes: Node[] = [
   { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
@@ -15,7 +17,7 @@ const initialEdges: Edge[] = [
 
 const GOAL_ID = "goal-1";
 
-function snapshotToFlow(snapshot: Snapshot): { nodes: Node[]; edges: Edge[] } {
+function snapshotToFlow({snapshot,}: SnapshotVersion): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = Object.values(snapshot.nodes).map((n) => {
     // 1. Safely check if the API provided actual numbers for x and y
     // We use typeof instead of truthiness so we don't accidentally ignore a valid 0 coordinate
@@ -45,22 +47,35 @@ function snapshotToFlow(snapshot: Snapshot): { nodes: Node[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-export default function GraphContainer() {
+
+interface GraphContainerProps {
+  goalId:string,
+  //loading?: boolean;
+}
+
+export const GraphContainer: React.FC<GraphContainerProps> = ({
+  goalId,
+  //loading=false,
+}) => {
   const [nodes, setNodes] = useState<Node[]>(initialNodes);
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [loading, setLoading] = useState<boolean>(true);
-
+  const [loadGraph,getGraph] = useStore(graphStore,(state)=>[state.loadGraph,state.getGraph]);
+  const graphErrors = useStore(graphStore, (state)=>state.errors[goalId]);
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      const snapshot = await fetchSnapshot(GOAL_ID);
-
+      await loadGraph(goalId); 
+      const snapshotVer = getGraph(goalId);
+      if(!snapshotVer || graphErrors){
+        cancelled=true;
+      }
       if (cancelled) return;
 
-      if (snapshot) {
-        const { nodes: flowNodes, edges: flowEdges } = snapshotToFlow(snapshot);
+      if (snapshotVer) {
+        const { nodes: flowNodes, edges: flowEdges } = snapshotToFlow(snapshotVer);
         setNodes(flowNodes);
         setEdges(flowEdges);
       }
@@ -83,4 +98,6 @@ export default function GraphContainer() {
       loading={loading}
     />
   );
-}
+};
+
+

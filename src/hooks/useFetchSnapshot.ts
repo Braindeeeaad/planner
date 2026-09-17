@@ -1,5 +1,5 @@
 import {invoke} from '@tauri-apps/api/core';
-import type {Snapshot,SnapshotVersion} from '../types';
+import type {SnapshotVersion} from '../types';
 import { useCallback } from 'react';
 
 export function useFetchSnapshot(){

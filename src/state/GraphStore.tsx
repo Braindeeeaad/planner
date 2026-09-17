@@ -7,7 +7,8 @@ import type { StoreApi } from 'zustand'
 
 
 type GraphStoreState = {
-    graphs: Record<string, SnapshotVersion| undefined>
+    graphs: Record<string, SnapshotVersion| undefined>,
+    errors: Record<string,string | undefined>
 }
 
 type GraphStoreActions = {
@@ -24,12 +25,23 @@ const createLoadGraph = (
 ): GraphStoreActions['loadGraph'] =>{
     return async(goalId)=>{
         //const result = await graphSnapshot(goalId);
-        const result = await invoke<SnapshotVersion>('get_snapshot', {
-            goalId: goalId // Rust receives this as `goal_id`
-        });
         set((state)=>({
-            graphs: {...state.graphs,[goalId]:result},
+            errors:{...state.errors,[goalId]:undefined},
         }))
+        try{
+            const result = await invoke<SnapshotVersion>('get_snapshot', {
+                goalId: goalId // Rust receives this as `goal_id`
+            });
+            set((state)=>({
+                graphs: {...state.graphs,[goalId]:result},
+            }))
+        }
+        catch(err){
+            set((state)=>({
+                errors:{...state.errors,[goalId]:String(err)}
+            }))
+        }
+        
     }
 }
 
@@ -70,6 +82,7 @@ const createProposeOp = (
 }
 export const graphStore = createStore<GraphStore>()((set,get)=>({
     graphs: {},
+    errors:{},
     loadGraph:createLoadGraph(set),
     getGraph:createGetGraph(get),
     setGraph:createSetGraph(set),
